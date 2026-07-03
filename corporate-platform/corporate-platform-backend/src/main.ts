@@ -37,10 +37,10 @@ async function bootstrap() {
 
   /**
    * Helmet middleware with comprehensive security headers.
-   * 
+   *
    * Each header is configured with production-safe values while maintaining
    * compatibility with Swagger UI and API functionality.
-   * 
+   *
    * Security Headers:
    * - Content-Security-Policy (CSP): Prevents XSS and data injection
    * - X-Frame-Options: Prevents clickjacking
@@ -79,12 +79,7 @@ async function bootstrap() {
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com',
           ],
-          imgSrc: [
-            "'self'",
-            'data:',
-            'https:',
-            'http:',
-          ],
+          imgSrc: ["'self'", 'data:', 'https:', 'http:'],
           fontSrc: [
             "'self'",
             'https://cdn.jsdelivr.net',
@@ -218,31 +213,31 @@ async function bootstrap() {
     res.setHeader(
       'Permissions-Policy',
       'geolocation=(self), ' +
-      'microphone=(), ' +
-      'camera=(), ' +
-      'payment=(self), ' +
-      'usb=(), ' +
-      'vr=(), ' +
-      'xr=(), ' +
-      'accelerometer=(), ' +
-      'gyroscope=(), ' +
-      'magnetometer=(), ' +
-      'speaker=(), ' +
-      'document-domain=(), ' +
-      'fullscreen=(self), ' +
-      'picture-in-picture=(self), ' +
-      'autoplay=(self), ' +
-      'clipboard-write=(self), ' +
-      'clipboard-read=(self), ' +
-      'encrypted-media=(self), ' +
-      'gamepad=(), ' +
-      'hid=(), ' +
-      'idle-detection=(), ' +
-      'keyboard-map=(), ' +
-      'navigation-override=(), ' +
-      'serial=(), ' +
-      'sync-xhr=(), ' +
-      'wake-lock=(self)'
+        'microphone=(), ' +
+        'camera=(), ' +
+        'payment=(self), ' +
+        'usb=(), ' +
+        'vr=(), ' +
+        'xr=(), ' +
+        'accelerometer=(), ' +
+        'gyroscope=(), ' +
+        'magnetometer=(), ' +
+        'speaker=(), ' +
+        'document-domain=(), ' +
+        'fullscreen=(self), ' +
+        'picture-in-picture=(self), ' +
+        'autoplay=(self), ' +
+        'clipboard-write=(self), ' +
+        'clipboard-read=(self), ' +
+        'encrypted-media=(self), ' +
+        'gamepad=(), ' +
+        'hid=(), ' +
+        'idle-detection=(), ' +
+        'keyboard-map=(), ' +
+        'navigation-override=(), ' +
+        'serial=(), ' +
+        'sync-xhr=(), ' +
+        'wake-lock=(self)',
     );
     next();
   });
@@ -343,23 +338,32 @@ async function bootstrap() {
 
     // NEL (Network Error Logging) header for monitoring
     if (isProduction) {
-      res.setHeader('NEL', JSON.stringify({
-        report_to: 'default',
-        max_age: 86400,
-        include_subdomains: true,
-      }));
+      res.setHeader(
+        'NEL',
+        JSON.stringify({
+          report_to: 'default',
+          max_age: 86400,
+          include_subdomains: true,
+        }),
+      );
     }
 
     // Reporting-Endpoints header for CSP violation reporting
     if (isProduction) {
-      res.setHeader('Reporting-Endpoints', JSON.stringify({
-        'default': '/api/v1/security/reports',
-        'csp': '/api/v1/security/csp-reports',
-      }));
+      res.setHeader(
+        'Reporting-Endpoints',
+        JSON.stringify({
+          default: '/api/v1/security/reports',
+          csp: '/api/v1/security/csp-reports',
+        }),
+      );
     }
 
     // Cache-Control for API responses
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, proxy-revalidate',
+    );
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
 
@@ -370,9 +374,13 @@ async function bootstrap() {
   // Start Server
   // ============================================================================
 
-  logger.log(`🚀 Starting server in ${isProduction ? 'production' : 'development'} mode`);
+  logger.log(
+    `🚀 Starting server in ${isProduction ? 'production' : 'development'} mode`,
+  );
   logger.log(`📡 Listening on port ${appConfig.port}`);
-  logger.log(`📚 Swagger UI available at http://localhost:${appConfig.port}/api/docs`);
+  logger.log(
+    `📚 Swagger UI available at http://localhost:${appConfig.port}/api/docs`,
+  );
 
   await app.listen(appConfig.port);
 }

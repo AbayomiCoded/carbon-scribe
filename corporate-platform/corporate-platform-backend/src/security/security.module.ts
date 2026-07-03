@@ -8,10 +8,7 @@ import { SecurityReportsController } from './security-reports.controller';
 @Module({
   imports: [DatabaseModule],
   providers: [SecurityService],
-  controllers: [
-    SecurityController,
-    SecurityReportsController,
-  ],
+  controllers: [SecurityController, SecurityReportsController],
   exports: [SecurityService],
 })
 export class SecurityModule implements NestModule {

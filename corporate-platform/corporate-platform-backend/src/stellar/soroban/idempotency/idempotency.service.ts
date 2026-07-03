@@ -1,8 +1,7 @@
-import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import {
   IdempotencyOptions,
-  IdempotentContractResult,
   ContractCallStatus,
   DuplicateStrategy,
   DeduplicationKeyComponents,
@@ -37,14 +36,16 @@ export class IdempotencyService {
    * Normalize and hash arguments for deduplication
    */
   hashArguments(args: unknown[]): string {
-    const normalized = args.map(arg => {
+    const normalized = args.map((arg) => {
       if (typeof arg === 'object' && arg !== null) {
         // Sort object keys for deterministic serialization
         return JSON.stringify(arg, Object.keys(arg).sort());
       }
       return String(arg);
     });
-    return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+    return createHash('sha256')
+      .update(JSON.stringify(normalized))
+      .digest('hex');
   }
 
   /**
@@ -138,14 +139,17 @@ export class IdempotencyService {
     options: IdempotencyOptions,
     deduplicationKey: string,
   ): Promise<any> {
-    const idempotencyKey = options.idempotencyKey || 
+    const idempotencyKey =
+      options.idempotencyKey ||
       this.generateIdempotencyKey(options.workflowId, methodName);
 
     // Convert args to JSON-safe format
     const argsJson = JSON.parse(JSON.stringify(args)) as Prisma.JsonValue;
 
     // Convert metadata to JSON-safe format
-    const metadataJson = JSON.parse(JSON.stringify(options.metadata || {})) as Prisma.JsonValue;
+    const metadataJson = JSON.parse(
+      JSON.stringify(options.metadata || {}),
+    ) as Prisma.JsonValue;
 
     return this.prisma.contractCall.create({
       data: {
@@ -170,10 +174,7 @@ export class IdempotencyService {
   /**
    * Mark a contract call as confirmed
    */
-  async confirmContractCall(
-    callId: string,
-    result: unknown,
-  ): Promise<any> {
+  async confirmContractCall(callId: string, result: unknown): Promise<any> {
     // Convert result to JSON-safe format
     const resultJson = JSON.parse(JSON.stringify(result)) as Prisma.JsonValue;
 
@@ -190,10 +191,7 @@ export class IdempotencyService {
   /**
    * Mark a contract call as failed
    */
-  async failContractCall(
-    callId: string,
-    errorMessage: string,
-  ): Promise<any> {
+  async failContractCall(callId: string, errorMessage: string): Promise<any> {
     return this.prisma.contractCall.update({
       where: { id: callId },
       data: {
@@ -297,7 +295,10 @@ export class IdempotencyService {
    */
   async cleanupOldCalls(
     olderThanDays: number = 90,
-    statuses: string[] = [ContractCallStatus.CONFIRMED, ContractCallStatus.DUPLICATE],
+    statuses: string[] = [
+      ContractCallStatus.CONFIRMED,
+      ContractCallStatus.DUPLICATE,
+    ],
   ): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);

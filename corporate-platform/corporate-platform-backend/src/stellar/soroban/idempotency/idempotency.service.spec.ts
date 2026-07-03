@@ -1,11 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { IdempotencyService } from './idempotency.service';
 import { PrismaService } from '../../../shared/database/prisma.service';
-import { ContractCallStatus, DuplicateStrategy } from '../interfaces/idempotency.interface';
+import {
+  ContractCallStatus,
+  DuplicateStrategy,
+} from '../interfaces/idempotency.interface';
 
 describe('IdempotencyService', () => {
   let service: IdempotencyService;
-  let prisma: PrismaService;
+  // let prisma: PrismaService;
 
   const mockPrismaService = {
     contractCall: {
@@ -29,7 +32,7 @@ describe('IdempotencyService', () => {
     }).compile();
 
     service = module.get<IdempotencyService>(IdempotencyService);
-    prisma = module.get<PrismaService>(PrismaService);
+    // prisma = module.get<PrismaService>(PrismaService);
   });
 
   it('should be defined', () => {

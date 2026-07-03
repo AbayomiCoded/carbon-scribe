@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { SorobanService } from '../soroban.service';
 import { IdempotencyService } from '../idempotency/idempotency.service';
 import {
@@ -32,7 +32,7 @@ export class CarbonAssetService {
 
   /**
    * Invoke a contract method with idempotency support
-   * 
+   *
    * @param companyId - The company ID for the contract call
    * @param payload - The contract invocation payload
    * @param options - Idempotency options including workflowId
@@ -47,7 +47,9 @@ export class CarbonAssetService {
   ): Promise<IdempotentContractResult<T>> {
     // Validate workflow ID
     if (!options.workflowId) {
-      throw new BadRequestException('workflowId is required for idempotent contract calls');
+      throw new BadRequestException(
+        'workflowId is required for idempotent contract calls',
+      );
     }
 
     // Check for duplicate
@@ -121,7 +123,9 @@ export class CarbonAssetService {
         idempotencyKey: callRecord.idempotencyKey,
         status: confirmed.status as ContractCallStatus,
         isDuplicate: dedupCheck.isDuplicate && dedupCheck.shouldProceed,
-        originalCallId: dedupCheck.isDuplicate ? dedupCheck.existingCall?.id : undefined,
+        originalCallId: dedupCheck.isDuplicate
+          ? dedupCheck.existingCall?.id
+          : undefined,
       };
     } catch (error) {
       // Handle failure - will be retried later

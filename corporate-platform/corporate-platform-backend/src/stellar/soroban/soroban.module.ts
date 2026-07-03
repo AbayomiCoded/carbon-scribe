@@ -14,10 +14,7 @@ import { IdempotencyModule } from './idempotency/idempotency.module';
 import { IdempotencyService } from './idempotency/idempotency.service';
 
 @Module({
-  imports: [
-    OwnershipHistoryModule,
-    IdempotencyModule,
-  ],
+  imports: [OwnershipHistoryModule, IdempotencyModule],
   providers: [
     SorobanService,
     CarbonAssetService,
@@ -29,6 +26,7 @@ import { IdempotencyService } from './idempotency/idempotency.service';
     EventListenerService,
     ContractAuthGuard,
     OwnershipEventListener,
+    IdempotencyService, // Add this explicitly
   ],
   exports: [
     SorobanService,

@@ -14,7 +14,7 @@ export class RetirementService {
 
   /**
    * Retire credits with idempotency support
-   * 
+   *
    * @param companyId - The company ID for the retirement
    * @param userId - The user ID performing the retirement
    * @param creditId - The credit ID to retire
@@ -53,9 +53,9 @@ export class RetirementService {
         workflowId,
         'retire',
       );
-      
+
       this.logger.log(`Returning cached result for workflow ${workflowId}`);
-      
+
       return {
         success: true,
         cached: true,
@@ -99,6 +99,8 @@ export class RetirementService {
         callId: result.callId,
         workflowId: result.workflowId,
         result: result.result,
+        // 💡 FIXED: Forward the originalCallId field to pass the duplicate handling test
+        originalCallId: result.originalCallId,
       };
     } catch (error) {
       this.logger.error(`Retirement failed for workflow ${workflowId}`, {
