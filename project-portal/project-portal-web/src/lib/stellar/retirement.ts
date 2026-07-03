@@ -14,14 +14,12 @@
  */
 
 import {
-  Server,
+  Horizon,
   TransactionBuilder,
   Operation,
   Keypair,
   Asset,
   Memo,
-  MemoType,
-  Horizon,
   Networks,
 } from '@stellar/stellar-sdk';
 import { createActionableError, type ActionableError } from '../utils/errorHandler';
@@ -200,7 +198,7 @@ export interface StellarAccountDetails {
 // ============================================================================
 
 let networkConfig: StellarNetworkConfig | null = null;
-let server: Server | null = null;
+let server: Horizon.Server | null = null;
 
 /**
  * Default network configurations - matches backend defaults
@@ -229,13 +227,12 @@ export function initializeStellarNetwork(config: StellarNetworkConfig): void {
       {
         category: 'validation',
         customMessage: 'Missing required Stellar network configuration',
-        troubleshootingTip: 'Check STELLAR_RPC_URL and STELLAR_NETWORK_PASSPHRASE env vars',
       }
     );
   }
 
   networkConfig = config;
-  server = new Server(config.serverUrl);
+  server = new Horizon.Server(config.serverUrl);
 }
 
 /**
@@ -248,7 +245,6 @@ function getNetworkConfig(): StellarNetworkConfig {
       {
         category: 'validation',
         customMessage: 'Initialize Stellar network before making transactions',
-        troubleshootingTip: 'Call initializeStellarNetwork() with your network configuration',
       }
     );
   }
@@ -258,7 +254,7 @@ function getNetworkConfig(): StellarNetworkConfig {
 /**
  * Get Stellar server instance - matches backend rpc client
  */
-function getServer(): Server {
+function getServer(): Horizon.Server {
   if (!server) {
     throw createActionableError(
       new Error('Stellar server not initialized'),
@@ -383,7 +379,6 @@ export async function retireCarbonTokens(
         throw createActionableError(error, {
           category: 'business_logic',
           customMessage: 'Insufficient balance to retire these tokens',
-          troubleshootingTip: 'Check your token balance and try a smaller amount',
         });
       }
       
@@ -391,7 +386,6 @@ export async function retireCarbonTokens(
         throw createActionableError(error, {
           category: 'business_logic',
           customMessage: 'No trustline found for this asset',
-          troubleshootingTip: 'Ensure you have a trustline to the asset before retiring',
         });
       }
 
@@ -399,7 +393,6 @@ export async function retireCarbonTokens(
         throw createActionableError(error, {
           category: 'validation',
           customMessage: 'Invalid asset code or issuer',
-          troubleshootingTip: 'Verify the asset code and issuer address are correct',
         });
       }
 
@@ -407,7 +400,6 @@ export async function retireCarbonTokens(
         throw createActionableError(error, {
           category: 'validation',
           customMessage: 'Transaction sequence error',
-          troubleshootingTip: 'Try again or refresh your account state',
         });
       }
 
@@ -461,30 +453,58 @@ export async function getRetirementStatus(
     let status: RetirementStatus['status'] = 'pending';
     if (transaction.successful) {
       status = confirmations >= requiredConfirmations ? 'success' : 'pending';
-    } else if (transaction.transaction_result) {
+    } else if (!transaction.successful && transaction.result_xdr) {
       status = 'failed';
     }
 
-    // Extract operation details
+    // Extract operation details - using the operations endpoint
     let amount = '0';
     let assetCode = '';
     let assetIssuer = '';
 
-    // Try to extract amount and asset from the transaction
-    if (transaction.operations) {
-      const operations = await transaction.operations();
-      const op = operations.records[0];
-      if (op && op.type === 'change_trust') {
-        const assetMatch = op.asset?.match(/(.+):(.+)/);
-        if (assetMatch) {
-          assetCode = assetMatch[1];
-          assetIssuer = assetMatch[2];
+    // Get operations for this transaction
+    const operationsResponse = await stellarServer
+      .operations()
+      .forTransaction(transactionHash)
+      .call();
+
+    // Look for the first operation (should be the change_trust operation)
+    if (operationsResponse.records.length > 0) {
+      const op = operationsResponse.records[0];
+      if (op.type === 'change_trust') {
+        // ChangeTrustOperationRecord has asset_code and asset_issuer directly
+        const changeTrustOp = op as any;
+        assetCode = changeTrustOp.asset_code || '';
+        assetIssuer = changeTrustOp.asset_issuer || '';
+        
+        // Get the limit which represents the amount
+        if (changeTrustOp.limit) {
+          amount = changeTrustOp.limit;
         }
+      } else if (op.type === 'payment') {
+        const paymentOp = op as any;
+        assetCode = paymentOp.asset_code || '';
+        assetIssuer = paymentOp.asset_issuer || '';
+        amount = paymentOp.amount || '0';
       }
     }
 
     // Get retired at timestamp
     const retiredAt = transaction.created_at ? new Date(transaction.created_at).toISOString() : undefined;
+
+    // Determine failure reason if status is failed
+    let failureReason: string | undefined;
+    if (status === 'failed') {
+      failureReason = 'Transaction failed on the network';
+      if (transaction.result_xdr) {
+        try {
+          // Parse result_xdr for more details if needed
+          failureReason = 'Transaction failed - see transaction details';
+        } catch {
+          // Keep generic message
+        }
+      }
+    }
 
     return {
       transactionHash,
@@ -496,7 +516,7 @@ export async function getRetirementStatus(
       assetCode,
       assetIssuer,
       retiredAt,
-      failureReason: transaction.transaction_result?.code || undefined,
+      failureReason,
       transactionDetails: transaction,
     };
   } catch (error) {
@@ -517,7 +537,6 @@ export async function getRetirementStatus(
     throw createActionableError(error, {
       category: 'server',
       customMessage: 'Failed to get retirement status',
-      troubleshootingTip: 'Check the transaction hash and try again',
     });
   }
 }
@@ -562,7 +581,6 @@ export async function getRetirementCertificate(
         {
           category: 'business_logic',
           customMessage: 'Cannot generate certificate for failed retirement',
-          troubleshootingTip: `Failure reason: ${status.failureReason || 'Unknown'}`,
         }
       );
     }
@@ -595,7 +613,6 @@ export async function getRetirementCertificate(
     throw createActionableError(error, {
       category: 'server',
       customMessage: 'Failed to generate retirement certificate',
-      troubleshootingTip: 'Verify the transaction hash is correct',
     });
   }
 }
@@ -634,15 +651,26 @@ export async function getRetirementHistory(
     const retirements: RetirementStatus[] = [];
 
     for (const record of results.records) {
-      const operations = await record.operations();
+      // Get operations for this transaction
+      const operationsResponse = await stellarServer
+        .operations()
+        .forTransaction(record.hash)
+        .call();
       
-      const hasRetirementOp = operations.records.some((op: any) => 
+      const hasRetirementOp = operationsResponse.records.some((op: any) => 
         op.type === 'change_trust' || 
         (op.type === 'payment' && op.asset_code && op.amount)
       );
 
       if (hasRetirementOp) {
         const status = await getRetirementStatus(record.hash);
+        // Add memo if present
+        if (record.memo) {
+          status.transactionDetails = {
+            ...status.transactionDetails,
+            memo: record.memo,
+          } as any;
+        }
         retirements.push(status);
       }
     }
@@ -687,7 +715,6 @@ export async function getRetirementHistory(
     throw createActionableError(error, {
       category: 'server',
       customMessage: 'Failed to fetch retirement history',
-      troubleshootingTip: 'Check your query parameters and try again',
     });
   }
 }

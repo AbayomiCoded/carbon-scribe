@@ -11,7 +11,6 @@
  * @module ipfs/pinata
  */
 
-import { api } from '../api/axios';
 import { createActionableError, type ActionableError } from '../utils/errorHandler';
 
 // ============================================================================
@@ -204,7 +203,6 @@ function getConfig(): PinataConfig {
       {
         category: 'validation',
         customMessage: 'Call initializePinata() before using IPFS features',
-        troubleshootingTip: 'Initialize with your Pinata credentials in the app initialization',
       }
     );
   }
@@ -418,7 +416,6 @@ export async function pinFile(
       reject(createActionableError(new Error('Network error during upload'), {
         category: 'network',
         customMessage: 'Failed to connect to Pinata',
-        troubleshootingTip: 'Check your internet connection and try again',
       }));
     };
 
@@ -426,7 +423,6 @@ export async function pinFile(
       reject(createActionableError(new Error('Upload timeout'), {
         category: 'network',
         customMessage: 'Upload took too long',
-        troubleshootingTip: 'Try uploading a smaller file or check your connection',
       }));
     };
 
@@ -742,8 +738,7 @@ export async function pinMultipleFiles(
   let totalFailure = 0;
 
   // Track overall progress
-  let totalBytes = files.reduce((sum, f) => sum + f.size, 0);
-  let uploadedBytes = 0;
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
 
   // Upload each file sequentially
   for (let i = 0; i < files.length; i++) {

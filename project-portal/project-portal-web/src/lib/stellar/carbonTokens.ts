@@ -14,22 +14,30 @@
  */
 
 import {
-  Server,
+  Horizon,
   Keypair,
   Asset,
   TransactionBuilder,
   Operation,
   Memo,
   Networks,
-  Horizon,
-  Account,
   NotFoundError,
 } from '@stellar/stellar-sdk';
-import { createActionableError, type ActionableError } from '../utils/errorHandler';
+import { createActionableError } from '../utils/errorHandler';
 
 // ============================================================================
 // Types (Align with backend financing models)
 // ============================================================================
+
+/** Stellar network configuration - matches backend env vars */
+interface StellarNetworkConfig {
+  /** Horizon server URL (matches STELLAR_RPC_URL) */
+  serverUrl: string;
+  /** Network passphrase (matches STELLAR_NETWORK_PASSPHRASE) */
+  networkPassphrase: string;
+  /** Optional Horizon URL */
+  horizonUrl?: string;
+}
 
 /** Carbon token information - matches backend CarbonCredit model */
 export interface CarbonTokenInfo {
@@ -182,15 +190,8 @@ export interface TrustlineStatus {
 // Configuration Management (Shared with retirement.ts)
 // ============================================================================
 
-// Reuse configuration from retirement.ts
 let networkConfig: StellarNetworkConfig | null = null;
-let server: Server | null = null;
-
-interface StellarNetworkConfig {
-  serverUrl: string;
-  networkPassphrase: string;
-  horizonUrl?: string;
-}
+let server: Horizon.Server | null = null;
 
 /**
  * Initialize Stellar network - matches backend NewClientFromEnv pattern
@@ -205,13 +206,12 @@ export function initializeStellarNetwork(config: StellarNetworkConfig): void {
       {
         category: 'validation',
         customMessage: 'Missing required Stellar network configuration',
-        troubleshootingTip: 'Check STELLAR_RPC_URL and STELLAR_NETWORK_PASSPHRASE env vars',
       }
     );
   }
 
   networkConfig = config;
-  server = new Server(config.serverUrl);
+  server = new Horizon.Server(config.serverUrl);
 }
 
 /**
@@ -224,7 +224,6 @@ function getNetworkConfig(): StellarNetworkConfig {
       {
         category: 'validation',
         customMessage: 'Initialize Stellar network before making transactions',
-        troubleshootingTip: 'Call initializeStellarNetwork() with your network configuration',
       }
     );
   }
@@ -234,7 +233,7 @@ function getNetworkConfig(): StellarNetworkConfig {
 /**
  * Get Stellar server instance
  */
-function getServer(): Server {
+function getServer(): Horizon.Server {
   if (!server) {
     throw createActionableError(
       new Error('Stellar server not initialized'),
@@ -365,7 +364,6 @@ export async function getCarbonTokenBalance(
     throw createActionableError(error, {
       category: 'server',
       customMessage: 'Failed to get token balance',
-      troubleshootingTip: 'Verify the address is correct and try again',
     });
   }
 }
@@ -458,7 +456,6 @@ export async function transferCarbonTokens(
         throw createActionableError(error, {
           category: 'business_logic',
           customMessage: 'Insufficient balance for transfer',
-          troubleshootingTip: 'Check your token balance and try a smaller amount',
         });
       }
 
@@ -466,7 +463,6 @@ export async function transferCarbonTokens(
         throw createActionableError(error, {
           category: 'business_logic',
           customMessage: 'Destination account has no trustline for this asset',
-          troubleshootingTip: 'Ensure the destination account has a trustline to this asset',
         });
       }
 
@@ -474,7 +470,6 @@ export async function transferCarbonTokens(
         throw createActionableError(error, {
           category: 'validation',
           customMessage: 'Invalid asset code or issuer',
-          troubleshootingTip: 'Verify the asset code and issuer address are correct',
         });
       }
 
@@ -482,7 +477,6 @@ export async function transferCarbonTokens(
         throw createActionableError(error, {
           category: 'validation',
           customMessage: 'Transaction sequence error',
-          troubleshootingTip: 'Try again or refresh your account state',
         });
       }
 
@@ -530,7 +524,6 @@ export async function getCarbonTokenInfo(
     }
 
     // Query asset details (matches backend asset queries)
-    const asset = new Asset(assetCode, assetIssuer);
     const assets = await stellarServer.assets().forCode(assetCode).call();
 
     // Find matching asset
@@ -567,14 +560,14 @@ export async function getCarbonTokenInfo(
       metadata,
     };
   } catch (error) {
-    if (error instanceof ActionableError) {
+    // Re-throw ActionableError as-is
+    if (error instanceof Error && 'category' in error) {
       throw error;
     }
 
     throw createActionableError(error, {
       category: 'server',
       customMessage: 'Failed to get token information',
-      troubleshootingTip: 'Verify the asset code and issuer are correct',
     });
   }
 }
@@ -656,7 +649,6 @@ export async function getTokenHistory(
     throw createActionableError(error, {
       category: 'server',
       customMessage: 'Failed to get token history',
-      troubleshootingTip: 'Check your query parameters and try again',
     });
   }
 }
@@ -729,7 +721,6 @@ export async function checkTrustline(
     throw createActionableError(error, {
       category: 'server',
       customMessage: 'Failed to check trustline',
-      troubleshootingTip: 'Verify the address and asset are correct',
     });
   }
 }
@@ -757,21 +748,24 @@ async function transformOperationToHistory(
 
     if (record.type === 'payment') {
       type = 'payment';
+      // For payment operations, asset may be a string like "CODE:ISSUER"
       const assetMatch = record.asset?.match(/(.+):(.+)/);
       if (assetMatch) {
         assetCode = assetMatch[1];
         assetIssuer = assetMatch[2];
+      } else if (record.asset_code) {
+        // Some versions have separate fields
+        assetCode = record.asset_code;
+        assetIssuer = record.asset_issuer || '';
       }
       amount = record.amount || '0';
       sourceAccount = record.source_account;
       destinationAccount = record.to;
     } else if (record.type === 'change_trust') {
       type = 'change_trust';
-      const assetMatch = record.asset?.match(/(.+):(.+)/);
-      if (assetMatch) {
-        assetCode = assetMatch[1];
-        assetIssuer = assetMatch[2];
-      }
+      // Change trust has asset_code and asset_issuer directly
+      assetCode = record.asset_code || '';
+      assetIssuer = record.asset_issuer || '';
       amount = record.limit || '0';
       sourceAccount = record.account;
     }
