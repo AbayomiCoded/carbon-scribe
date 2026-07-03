@@ -83,7 +83,8 @@ export class CarbonAssetService {
         contractId: this.getContractId(),
       });
 
-      const transactionHash = response.transactionHash || response.hash || '';
+      // Fix: Use transactionHash only (remove .hash as it doesn't exist on ContractExecutionResult)
+      const transactionHash = response.transactionHash || '';
 
       // Create contract call record with idempotency
       const callRecord = await this.idempotencyService.createContractCall(
@@ -190,6 +191,7 @@ export class CarbonAssetService {
     return this.invokeWithIdempotency<number>(
       companyId,
       {
+        companyId, // Add missing companyId
         methodName: 'balance',
         args: [{ type: 'address', value: address }],
       },
@@ -244,6 +246,7 @@ export class CarbonAssetService {
     return this.invokeWithIdempotency<number[]>(
       companyId,
       {
+        companyId, // Add missing companyId
         methodName: 'tokens_of',
         args: [{ type: 'address', value: address }],
       },
@@ -298,6 +301,7 @@ export class CarbonAssetService {
     return this.invokeWithIdempotency<Record<string, unknown> | null>(
       companyId,
       {
+        companyId, // Add missing companyId
         methodName: 'token_metadata',
         args: [{ type: 'u32', value: tokenId }],
       },
@@ -350,6 +354,7 @@ export class CarbonAssetService {
     return this.invokeWithIdempotency<string>(
       companyId,
       {
+        companyId, // Add missing companyId
         methodName: 'token_status',
         args: [{ type: 'u32', value: tokenId }],
       },
@@ -375,6 +380,7 @@ export class CarbonAssetService {
     return this.invokeWithIdempotency(
       companyId,
       {
+        companyId, // Add missing companyId
         methodName: 'transfer',
         args: [
           { type: 'address', value: from },
@@ -404,6 +410,7 @@ export class CarbonAssetService {
     return this.invokeWithIdempotency(
       companyId,
       {
+        companyId, // Add missing companyId
         methodName: 'retire',
         args: [
           { type: 'u32', value: tokenId },
@@ -432,6 +439,7 @@ export class CarbonAssetService {
     return this.invokeWithIdempotency(
       companyId,
       {
+        companyId, // Add missing companyId
         methodName: 'mint',
         args: [
           { type: 'address', value: to },

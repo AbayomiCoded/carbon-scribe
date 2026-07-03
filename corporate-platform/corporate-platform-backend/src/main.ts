@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from './config/config.service';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import * as helmet from 'helmet';
+import helmet from 'helmet';
 import { Logger } from '@nestjs/common';
 
 function parseCorsOrigins(value?: string): string[] {
@@ -51,7 +51,7 @@ async function bootstrap() {
    * - Cross-Origin-Opener-Policy: Controls window sharing
    * - Cross-Origin-Embedder-Policy: Controls cross-origin embedding
    * - X-DNS-Prefetch-Control: Controls DNS prefetching
-   * - Permissions-Policy: Controls browser features
+   * - Permissions-Policy: Controls browser features (added manually)
    */
   app.use(
     helmet({
@@ -179,41 +179,6 @@ async function bootstrap() {
       },
 
       /**
-       * Permissions-Policy (formerly Feature-Policy)
-       * Controls which browser features are allowed
-       */
-      permissionsPolicy: {
-        features: {
-          geolocation: ["'self'"],
-          microphone: ["'none'"],
-          camera: ["'none'"],
-          payment: ["'self'"],
-          usb: ["'none'"],
-          vr: ["'none'"],
-          xr: ["'none'"],
-          accelerometer: ["'none'"],
-          gyroscope: ["'none'"],
-          magnetometer: ["'none'"],
-          speaker: ["'none'"],
-          documentDomain: ["'none'"],
-          fullscreen: ["'self'"],
-          pictureInPicture: ["'self'"],
-          autoplay: ["'self'"],
-          clipboardWrite: ["'self'"],
-          clipboardRead: ["'self'"],
-          encryptedMedia: ["'self'"],
-          gamepad: ["'none'"],
-          hid: ["'none'"],
-          idleDetection: ["'none'"],
-          keyboardMap: ["'none'"],
-          navigationOverride: ["'none'"],
-          serial: ["'none'"],
-          syncXhr: ["'none'"],
-          wakeLock: ["'self'"],
-        },
-      },
-
-      /**
        * Remove X-Powered-By header
        * Prevents information leakage about the technology stack
        */
@@ -239,6 +204,48 @@ async function bootstrap() {
       originAgentCluster: true,
     }),
   );
+
+  // ============================================================================
+  // Manual Permissions-Policy Header (not supported in helmet v8)
+  // ============================================================================
+
+  /**
+   * Permissions-Policy (formerly Feature-Policy)
+   * Controls which browser features are allowed
+   * Set manually since helmet's permissionsPolicy option has type issues
+   */
+  app.use((req, res, next) => {
+    res.setHeader(
+      'Permissions-Policy',
+      'geolocation=(self), ' +
+      'microphone=(), ' +
+      'camera=(), ' +
+      'payment=(self), ' +
+      'usb=(), ' +
+      'vr=(), ' +
+      'xr=(), ' +
+      'accelerometer=(), ' +
+      'gyroscope=(), ' +
+      'magnetometer=(), ' +
+      'speaker=(), ' +
+      'document-domain=(), ' +
+      'fullscreen=(self), ' +
+      'picture-in-picture=(self), ' +
+      'autoplay=(self), ' +
+      'clipboard-write=(self), ' +
+      'clipboard-read=(self), ' +
+      'encrypted-media=(self), ' +
+      'gamepad=(), ' +
+      'hid=(), ' +
+      'idle-detection=(), ' +
+      'keyboard-map=(), ' +
+      'navigation-override=(), ' +
+      'serial=(), ' +
+      'sync-xhr=(), ' +
+      'wake-lock=(self)'
+    );
+    next();
+  });
 
   // ============================================================================
   // CORS Configuration

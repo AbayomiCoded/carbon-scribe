@@ -8,6 +8,7 @@ import {
   DeduplicationKeyComponents,
 } from '../interfaces/idempotency.interface';
 import { createHash } from 'crypto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class IdempotencyService {
@@ -140,12 +141,18 @@ export class IdempotencyService {
     const idempotencyKey = options.idempotencyKey || 
       this.generateIdempotencyKey(options.workflowId, methodName);
 
+    // Convert args to JSON-safe format
+    const argsJson = JSON.parse(JSON.stringify(args)) as Prisma.JsonValue;
+
+    // Convert metadata to JSON-safe format
+    const metadataJson = JSON.parse(JSON.stringify(options.metadata || {})) as Prisma.JsonValue;
+
     return this.prisma.contractCall.create({
       data: {
         companyId,
         contractId,
         methodName,
-        args,
+        args: argsJson,
         transactionHash,
         status: ContractCallStatus.PENDING,
         workflowId: options.workflowId,
@@ -154,7 +161,7 @@ export class IdempotencyService {
         isDuplicate: false,
         maxRetries: options.maxRetries || 3,
         retryCount: 0,
-        metadata: options.metadata || {},
+        metadata: metadataJson,
         submittedAt: new Date(),
       },
     });
@@ -167,11 +174,14 @@ export class IdempotencyService {
     callId: string,
     result: unknown,
   ): Promise<any> {
+    // Convert result to JSON-safe format
+    const resultJson = JSON.parse(JSON.stringify(result)) as Prisma.JsonValue;
+
     return this.prisma.contractCall.update({
       where: { id: callId },
       data: {
         status: ContractCallStatus.CONFIRMED,
-        result,
+        result: resultJson,
         confirmedAt: new Date(),
       },
     });
