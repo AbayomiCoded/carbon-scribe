@@ -10,6 +10,7 @@ import (
 type Service struct {
 	pipeline        *ingestion.SatellitePipeline
 	webhookPipeline *ingestion.WebhookPipeline
+	iotPipeline     *ingestion.IoTPipeline
 	repo            Repository
 }
 
@@ -18,6 +19,7 @@ func NewService(repo Repository) *Service {
 	return &Service{
 		pipeline:        ingestion.NewSatellitePipeline(repo),
 		webhookPipeline: ingestion.NewWebhookPipeline(repo),
+		iotPipeline:     ingestion.NewIoTPipeline(repo),
 		repo:            repo,
 	}
 }
@@ -87,4 +89,46 @@ func (s *Service) ListWebhookReadingsBySource(ctx context.Context, projectID, so
 		limit = 50
 	}
 	return s.repo.ListWebhookReadingsBySource(ctx, projectID, source, limit)
+}
+
+// IngestIoT validates and persists an IoT reading.
+func (s *Service) IngestIoT(ctx context.Context, req IngestIoTRequest) (*IoTReading, error) {
+	ir := ingestion.IoTRequest{
+		ProjectID:      req.ProjectID,
+		SensorID:       req.SensorID,
+		SensorType:     req.SensorType,
+		Value:          req.Value,
+		Unit:           req.Unit,
+		Location:       req.Location,
+		Metadata:       req.Metadata,
+		CapturedAt:     req.CapturedAt,
+		DeviceID:       req.DeviceID,
+		BatteryLevel:   req.BatteryLevel,
+		SignalStrength: req.SignalStrength,
+	}
+	return s.iotPipeline.Ingest(ctx, ir)
+}
+
+// ListIoTReadings returns the most recent IoT readings for a project.
+func (s *Service) ListIoTReadings(ctx context.Context, projectID string, limit int) ([]IoTReading, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	return s.repo.GetIoTReadingsByProject(ctx, projectID, limit)
+}
+
+// ListIoTReadingsBySensor returns readings filtered by sensor ID.
+func (s *Service) ListIoTReadingsBySensor(ctx context.Context, projectID, sensorID string, limit int) ([]IoTReading, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	return s.repo.GetIoTReadingsBySensor(ctx, projectID, sensorID, limit)
+}
+
+// ListIoTReadingsByType returns readings filtered by sensor type.
+func (s *Service) ListIoTReadingsByType(ctx context.Context, projectID, sensorType string, limit int) ([]IoTReading, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	return s.repo.GetIoTReadingsByType(ctx, projectID, sensorType, limit)
 }

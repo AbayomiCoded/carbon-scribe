@@ -238,3 +238,126 @@ func scanWebhookReadings(rows *sql.Rows) ([]ingestion.WebhookReading, error) {
 	}
 	return results, rows.Err()
 }
+
+// SaveIoTReading inserts an IoTReading into the iot_readings table.
+func (r *PostgresRepository) SaveIoTReading(ctx context.Context, reading *ingestion.IoTReading) error {
+	metaJSON, err := json.Marshal(reading.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	var locationJSON []byte
+	if reading.Location != nil {
+		locationJSON, err = json.Marshal(reading.Location)
+		if err != nil {
+			return fmt.Errorf("marshal location: %w", err)
+		}
+	}
+
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO iot_readings
+			(id, project_id, sensor_id, sensor_type, value, unit,
+			 location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		reading.ID, reading.ProjectID, reading.SensorID, reading.SensorType,
+		reading.Value, reading.Unit,
+		locationJSON, metaJSON, reading.DeviceID,
+		reading.BatteryLevel, reading.SignalStrength,
+		reading.CapturedAt, reading.IngestedAt,
+	)
+	return err
+}
+
+// GetIoTReadingsByProject returns the most recent IoT readings for a project.
+func (r *PostgresRepository) GetIoTReadingsByProject(ctx context.Context, projectID string, limit int) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1
+		ORDER BY captured_at DESC
+		LIMIT $2`, projectID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// GetIoTReadingsBySensor returns readings filtered by sensor ID.
+func (r *PostgresRepository) GetIoTReadingsBySensor(ctx context.Context, projectID, sensorID string, limit int) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1 AND sensor_id = $2
+		ORDER BY captured_at DESC
+		LIMIT $3`, projectID, sensorID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// GetIoTReadingsByType returns readings filtered by sensor type.
+func (r *PostgresRepository) GetIoTReadingsByType(ctx context.Context, projectID, sensorType string, limit int) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1 AND sensor_type = $2
+		ORDER BY captured_at DESC
+		LIMIT $3`, projectID, sensorType, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// GetIoTReadingsByTimeRange returns readings within a time range.
+func (r *PostgresRepository) GetIoTReadingsByTimeRange(ctx context.Context, projectID string, start, end time.Time) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1 AND captured_at BETWEEN $2 AND $3
+		ORDER BY captured_at ASC`, projectID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// scanIoTReadings is a helper to scan IoT readings from rows.
+func scanIoTReadings(rows *sql.Rows) ([]ingestion.IoTReading, error) {
+	var results []ingestion.IoTReading
+	for rows.Next() {
+		var ir ingestion.IoTReading
+		var locationJSON, metaJSON []byte
+		if err := rows.Scan(
+			&ir.ID, &ir.ProjectID, &ir.SensorID, &ir.SensorType,
+			&ir.Value, &ir.Unit,
+			&locationJSON, &metaJSON,
+			&ir.DeviceID, &ir.BatteryLevel, &ir.SignalStrength,
+			&ir.CapturedAt, &ir.IngestedAt,
+		); err != nil {
+			return nil, err
+		}
+		if len(locationJSON) > 0 {
+			ir.Location = &ingestion.Location{}
+			_ = json.Unmarshal(locationJSON, ir.Location)
+		}
+		if len(metaJSON) > 0 {
+			_ = json.Unmarshal(metaJSON, &ir.Metadata)
+		}
+		results = append(results, ir)
+	}
+	return results, rows.Err()
+}

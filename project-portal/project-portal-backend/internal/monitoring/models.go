@@ -11,6 +11,7 @@ type BoundingBox = ingestion.BoundingBox
 type SatelliteReading = ingestion.SatelliteReading
 type WebhookReading = ingestion.WebhookReading
 type Location = ingestion.Location
+type IoTReading = ingestion.IoTReading
 
 // IngestSatelliteRequest is the API payload for POST /api/v1/monitoring/satellite.
 type IngestSatelliteRequest struct {
@@ -39,4 +40,19 @@ type IngestWebhookRequest struct {
 	Metadata    map[string]string `json:"metadata"`
 	CapturedAt  time.Time         `json:"captured_at" binding:"required"`
 	WebhookID   string            `json:"webhook_id" binding:"required"` // For idempotency
+}
+
+// IngestIoTRequest is the API payload for POST /api/v1/monitoring/iot.
+type IngestIoTRequest struct {
+	ProjectID      string            `json:"project_id" binding:"required"`
+	SensorID       string            `json:"sensor_id" binding:"required"`
+	SensorType     string            `json:"sensor_type" binding:"required"`
+	Value          float64           `json:"value" binding:"required"`
+	Unit           string            `json:"unit"`
+	Location       *Location         `json:"location"`
+	Metadata       map[string]string `json:"metadata"`
+	CapturedAt     time.Time         `json:"captured_at" binding:"required"`
+	DeviceID       string            `json:"device_id"`
+	BatteryLevel   *float64          `json:"battery_level"`
+	SignalStrength *int              `json:"signal_strength"`
 }
