@@ -63,9 +63,7 @@ export class PinataHealthService implements OnModuleInit {
         );
       }
 
-      this.logger.log(
-        `IPFS gateway available (status ${response.status}).`,
-      );
+      this.logger.log(`IPFS gateway available (status ${response.status}).`);
     } catch (error) {
       this.logger.error(
         `IPFS gateway health check failed for ${gateway}: ${error.message}. ` +
