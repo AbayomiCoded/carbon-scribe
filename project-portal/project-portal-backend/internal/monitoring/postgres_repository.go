@@ -6,19 +6,377 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"carbon-scribe/project-portal/project-portal-backend/internal/monitoring/ingestion"
 )
 
 // PostgresRepository implements Repository using a *sql.DB connection.
 type PostgresRepository struct {
 	db *sql.DB
+	*PostgresMetricRepository
 }
 
 // NewPostgresRepository constructs a PostgresRepository.
 func NewPostgresRepository(db *sql.DB) *PostgresRepository {
-	return &PostgresRepository{db: db}
+	return &PostgresRepository{
+		db:                       db,
+		PostgresMetricRepository: NewPostgresMetricRepository(db),
+	}
 }
 
-// ... existing satellite, webhook, IoT, and metric methods ...
+// ============================================================================
+// Satellite Methods
+// ============================================================================
+
+// Save inserts a SatelliteReading into the satellite_readings table.
+func (r *PostgresRepository) Save(ctx context.Context, reading *ingestion.SatelliteReading) error {
+	metaJSON, err := json.Marshal(reading.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	var bboxJSON []byte
+	if reading.BoundingBox != nil {
+		bboxJSON, err = json.Marshal(reading.BoundingBox)
+		if err != nil {
+			return fmt.Errorf("marshal bounding_box: %w", err)
+		}
+	}
+
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO satellite_readings
+			(id, project_id, source, data_type, ndvi_mean, ndvi_min, ndvi_max,
+			 biomass_tons, imagery_url, bounding_box, metadata, captured_at, ingested_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		reading.ID, reading.ProjectID, reading.Source, reading.DataType,
+		reading.NDVIMean, reading.NDVIMin, reading.NDVIMax,
+		reading.BiomassTons, reading.ImageryURL, bboxJSON, metaJSON,
+		reading.CapturedAt, reading.IngestedAt,
+	)
+	return err
+}
+
+// ListByProject returns the most recent satellite readings for a project.
+func (r *PostgresRepository) ListByProject(ctx context.Context, projectID string, limit int) ([]ingestion.SatelliteReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, source, data_type, ndvi_mean, ndvi_min, ndvi_max,
+		       biomass_tons, imagery_url, bounding_box, metadata, captured_at, ingested_at
+		FROM satellite_readings
+		WHERE project_id = $1
+		ORDER BY captured_at DESC
+		LIMIT $2`, projectID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []ingestion.SatelliteReading
+	for rows.Next() {
+		var sr ingestion.SatelliteReading
+		var bboxJSON, metaJSON []byte
+		if err := rows.Scan(
+			&sr.ID, &sr.ProjectID, &sr.Source, &sr.DataType,
+			&sr.NDVIMean, &sr.NDVIMin, &sr.NDVIMax,
+			&sr.BiomassTons, &sr.ImageryURL, &bboxJSON, &metaJSON,
+			&sr.CapturedAt, &sr.IngestedAt,
+		); err != nil {
+			return nil, err
+		}
+		if len(bboxJSON) > 0 {
+			sr.BoundingBox = &ingestion.BoundingBox{}
+			_ = json.Unmarshal(bboxJSON, sr.BoundingBox)
+		}
+		if len(metaJSON) > 0 {
+			_ = json.Unmarshal(metaJSON, &sr.Metadata)
+		}
+		results = append(results, sr)
+	}
+	return results, rows.Err()
+}
+
+// ============================================================================
+// Webhook Methods
+// ============================================================================
+
+// SaveWebhookReading inserts a WebhookReading into the webhook_readings table.
+func (r *PostgresRepository) SaveWebhookReading(ctx context.Context, reading *ingestion.WebhookReading) error {
+	metaJSON, err := json.Marshal(reading.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	var locationJSON []byte
+	if reading.Location != nil {
+		locationJSON, err = json.Marshal(reading.Location)
+		if err != nil {
+			return fmt.Errorf("marshal location: %w", err)
+		}
+	}
+
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO webhook_readings
+			(id, project_id, source, source_type, metric_name, metric_value, unit,
+			 location, metadata, webhook_id, captured_at, ingested_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		reading.ID, reading.ProjectID, reading.Source, reading.SourceType,
+		reading.MetricName, reading.MetricValue, reading.Unit,
+		locationJSON, metaJSON, reading.WebhookID,
+		reading.CapturedAt, reading.IngestedAt,
+	)
+	return err
+}
+
+// GetWebhookReadingByID retrieves a webhook reading by its webhook ID (for deduplication).
+func (r *PostgresRepository) GetWebhookReadingByID(ctx context.Context, webhookID string) (*ingestion.WebhookReading, error) {
+	var reading ingestion.WebhookReading
+	var locationJSON, metaJSON []byte
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, project_id, source, source_type, metric_name, metric_value, unit,
+		       location, metadata, webhook_id, captured_at, ingested_at
+		FROM webhook_readings
+		WHERE webhook_id = $1`, webhookID).Scan(
+		&reading.ID, &reading.ProjectID, &reading.Source, &reading.SourceType,
+		&reading.MetricName, &reading.MetricValue, &reading.Unit,
+		&locationJSON, &metaJSON, &reading.WebhookID,
+		&reading.CapturedAt, &reading.IngestedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if len(locationJSON) > 0 {
+		reading.Location = &ingestion.Location{}
+		_ = json.Unmarshal(locationJSON, reading.Location)
+	}
+	if len(metaJSON) > 0 {
+		_ = json.Unmarshal(metaJSON, &reading.Metadata)
+	}
+	return &reading, nil
+}
+
+// ListWebhookReadings returns the most recent webhook readings for a project.
+func (r *PostgresRepository) ListWebhookReadings(ctx context.Context, projectID string, limit int) ([]ingestion.WebhookReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, source, source_type, metric_name, metric_value, unit,
+		       location, metadata, webhook_id, captured_at, ingested_at
+		FROM webhook_readings
+		WHERE project_id = $1
+		ORDER BY captured_at DESC
+		LIMIT $2`, projectID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanWebhookReadings(rows)
+}
+
+// ListWebhookReadingsByMetric returns readings filtered by metric name.
+func (r *PostgresRepository) ListWebhookReadingsByMetric(ctx context.Context, projectID, metricName string, limit int) ([]ingestion.WebhookReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, source, source_type, metric_name, metric_value, unit,
+		       location, metadata, webhook_id, captured_at, ingested_at
+		FROM webhook_readings
+		WHERE project_id = $1 AND metric_name = $2
+		ORDER BY captured_at DESC
+		LIMIT $3`, projectID, metricName, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanWebhookReadings(rows)
+}
+
+// ListWebhookReadingsBySource returns readings filtered by source.
+func (r *PostgresRepository) ListWebhookReadingsBySource(ctx context.Context, projectID, source string, limit int) ([]ingestion.WebhookReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, source, source_type, metric_name, metric_value, unit,
+		       location, metadata, webhook_id, captured_at, ingested_at
+		FROM webhook_readings
+		WHERE project_id = $1 AND source = $2
+		ORDER BY captured_at DESC
+		LIMIT $3`, projectID, source, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanWebhookReadings(rows)
+}
+
+// GetWebhookReadingsByTimeRange returns readings within a time range.
+func (r *PostgresRepository) GetWebhookReadingsByTimeRange(ctx context.Context, projectID string, start, end time.Time) ([]ingestion.WebhookReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, source, source_type, metric_name, metric_value, unit,
+		       location, metadata, webhook_id, captured_at, ingested_at
+		FROM webhook_readings
+		WHERE project_id = $1 AND captured_at BETWEEN $2 AND $3
+		ORDER BY captured_at ASC`, projectID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanWebhookReadings(rows)
+}
+
+// scanWebhookReadings is a helper to scan webhook readings from rows.
+func scanWebhookReadings(rows *sql.Rows) ([]ingestion.WebhookReading, error) {
+	var results []ingestion.WebhookReading
+	for rows.Next() {
+		var wr ingestion.WebhookReading
+		var locationJSON, metaJSON []byte
+		if err := rows.Scan(
+			&wr.ID, &wr.ProjectID, &wr.Source, &wr.SourceType,
+			&wr.MetricName, &wr.MetricValue, &wr.Unit,
+			&locationJSON, &metaJSON, &wr.WebhookID,
+			&wr.CapturedAt, &wr.IngestedAt,
+		); err != nil {
+			return nil, err
+		}
+		if len(locationJSON) > 0 {
+			wr.Location = &ingestion.Location{}
+			_ = json.Unmarshal(locationJSON, wr.Location)
+		}
+		if len(metaJSON) > 0 {
+			_ = json.Unmarshal(metaJSON, &wr.Metadata)
+		}
+		results = append(results, wr)
+	}
+	return results, rows.Err()
+}
+
+// ============================================================================
+// IoT Methods
+// ============================================================================
+
+// SaveIoTReading inserts an IoTReading into the iot_readings table.
+func (r *PostgresRepository) SaveIoTReading(ctx context.Context, reading *ingestion.IoTReading) error {
+	metaJSON, err := json.Marshal(reading.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	var locationJSON []byte
+	if reading.Location != nil {
+		locationJSON, err = json.Marshal(reading.Location)
+		if err != nil {
+			return fmt.Errorf("marshal location: %w", err)
+		}
+	}
+
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO iot_readings
+			(id, project_id, sensor_id, sensor_type, value, unit,
+			 location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		reading.ID, reading.ProjectID, reading.SensorID, reading.SensorType,
+		reading.Value, reading.Unit,
+		locationJSON, metaJSON, reading.DeviceID,
+		reading.BatteryLevel, reading.SignalStrength,
+		reading.CapturedAt, reading.IngestedAt,
+	)
+	return err
+}
+
+// GetIoTReadingsByProject returns the most recent IoT readings for a project.
+func (r *PostgresRepository) GetIoTReadingsByProject(ctx context.Context, projectID string, limit int) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1
+		ORDER BY captured_at DESC
+		LIMIT $2`, projectID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// GetIoTReadingsBySensor returns readings filtered by sensor ID.
+func (r *PostgresRepository) GetIoTReadingsBySensor(ctx context.Context, projectID, sensorID string, limit int) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1 AND sensor_id = $2
+		ORDER BY captured_at DESC
+		LIMIT $3`, projectID, sensorID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// GetIoTReadingsByType returns readings filtered by sensor type.
+func (r *PostgresRepository) GetIoTReadingsByType(ctx context.Context, projectID, sensorType string, limit int) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1 AND sensor_type = $2
+		ORDER BY captured_at DESC
+		LIMIT $3`, projectID, sensorType, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// GetIoTReadingsByTimeRange returns readings within a time range.
+func (r *PostgresRepository) GetIoTReadingsByTimeRange(ctx context.Context, projectID string, start, end time.Time) ([]ingestion.IoTReading, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, project_id, sensor_id, sensor_type, value, unit,
+		       location, metadata, device_id, battery_level, signal_strength, captured_at, ingested_at
+		FROM iot_readings
+		WHERE project_id = $1 AND captured_at BETWEEN $2 AND $3
+		ORDER BY captured_at ASC`, projectID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanIoTReadings(rows)
+}
+
+// scanIoTReadings is a helper to scan IoT readings from rows.
+func scanIoTReadings(rows *sql.Rows) ([]ingestion.IoTReading, error) {
+	var results []ingestion.IoTReading
+	for rows.Next() {
+		var ir ingestion.IoTReading
+		var locationJSON, metaJSON []byte
+		if err := rows.Scan(
+			&ir.ID, &ir.ProjectID, &ir.SensorID, &ir.SensorType,
+			&ir.Value, &ir.Unit,
+			&locationJSON, &metaJSON,
+			&ir.DeviceID, &ir.BatteryLevel, &ir.SignalStrength,
+			&ir.CapturedAt, &ir.IngestedAt,
+		); err != nil {
+			return nil, err
+		}
+		if len(locationJSON) > 0 {
+			ir.Location = &ingestion.Location{}
+			_ = json.Unmarshal(locationJSON, ir.Location)
+		}
+		if len(metaJSON) > 0 {
+			_ = json.Unmarshal(metaJSON, &ir.Metadata)
+		}
+		results = append(results, ir)
+	}
+	return results, rows.Err()
+}
 
 // ============================================================================
 // Health Check Methods
@@ -653,8 +1011,7 @@ func (r *PostgresRepository) GetSystemStatusSummary(ctx context.Context) (*Syste
 	// Get health check results for services
 	servicesQuery := `
 		SELECT DISTINCT service_name
-		FROM service_health_checks
-		WHERE is_active = true`
+		FROM service_health_checks`
 
 	rows, err := r.db.QueryContext(ctx, servicesQuery)
 	if err != nil {
@@ -700,6 +1057,19 @@ func (r *PostgresRepository) GetSystemStatusSummary(ctx context.Context) (*Syste
 		totalAlerts += count
 	}
 
+	uptimePercent := 0.0
+	if snapshot.UptimePercent != nil {
+		uptimePercent = *snapshot.UptimePercent
+	}
+	latencyMs := 0.0
+	if snapshot.LatencyMs != nil {
+		latencyMs = *snapshot.LatencyMs
+	}
+	errorRate := 0.0
+	if snapshot.ErrorRate != nil {
+		errorRate = *snapshot.ErrorRate
+	}
+
 	return &SystemStatusSummary{
 		OverallStatus:     snapshot.OverallStatus,
 		TotalServices:     len(services),
@@ -709,9 +1079,9 @@ func (r *PostgresRepository) GetSystemStatusSummary(ctx context.Context) (*Syste
 		UnknownServices:   unknownCount,
 		ActiveAlerts:      totalAlerts,
 		TotalAlerts:       totalAlerts,
-		UptimePercent:     *snapshot.UptimePercent,
-		AvgLatencyMs:      *snapshot.LatencyMs,
-		ErrorRate:         *snapshot.ErrorRate,
+		UptimePercent:     uptimePercent,
+		AvgLatencyMs:      latencyMs,
+		ErrorRate:         errorRate,
 		Timestamp:         snapshot.SnapshotTime,
 	}, nil
 }
