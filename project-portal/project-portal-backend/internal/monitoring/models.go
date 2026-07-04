@@ -56,3 +56,152 @@ type IngestIoTRequest struct {
 	BatteryLevel   *float64          `json:"battery_level"`
 	SignalStrength *int              `json:"signal_strength"`
 }
+
+// ============================================================================
+// Health Check Models
+// ============================================================================
+
+// HealthCheckStatus represents the status of a health check
+type HealthCheckStatus string
+
+const (
+	HealthCheckStatusHealthy   HealthCheckStatus = "healthy"
+	HealthCheckStatusDegraded  HealthCheckStatus = "degraded"
+	HealthCheckStatusUnhealthy HealthCheckStatus = "unhealthy"
+	HealthCheckStatusUnknown   HealthCheckStatus = "unknown"
+)
+
+// ServiceHealthCheck represents a health check for a service
+type ServiceHealthCheck struct {
+	ID          string
+	ServiceName string
+	CheckType   string
+	Status      HealthCheckStatus
+	LatencyMs   *float64
+	Error       string
+	Details     map[string]interface{}
+	CheckedAt   time.Time
+	CreatedAt   time.Time
+}
+
+// HealthCheckResult represents a historical health check result
+type HealthCheckResult struct {
+	ID          string
+	CheckID     string
+	ServiceName string
+	Status      HealthCheckStatus
+	LatencyMs   *float64
+	Error       string
+	Details     map[string]interface{}
+	CheckedAt   time.Time
+	CreatedAt   time.Time
+}
+
+// ============================================================================
+// Alert Models
+// ============================================================================
+
+// AlertSeverity represents the severity level of an alert
+type AlertSeverity string
+
+const (
+	AlertSeverityCritical AlertSeverity = "critical"
+	AlertSeverityWarning  AlertSeverity = "warning"
+	AlertSeverityInfo     AlertSeverity = "info"
+)
+
+// AlertStatus represents the status of an alert
+type AlertStatus string
+
+const (
+	AlertStatusActive       AlertStatus = "active"
+	AlertStatusAcknowledged AlertStatus = "acknowledged"
+	AlertStatusResolved     AlertStatus = "resolved"
+	AlertStatusIgnored      AlertStatus = "ignored"
+)
+
+// SystemAlert represents a system alert
+type SystemAlert struct {
+	ID             string
+	ServiceName    string
+	Severity       AlertSeverity
+	Status         AlertStatus
+	Title          string
+	Message        string
+	Details        map[string]interface{}
+	TriggeredBy    string
+	ResolvedBy     string
+	AcknowledgedBy string
+	AcknowledgedAt *time.Time
+	ResolvedAt     *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// CreateAlertRequest is the API payload for creating an alert
+type CreateAlertRequest struct {
+	ServiceName string                 `json:"service_name" binding:"required"`
+	Severity    AlertSeverity          `json:"severity" binding:"required"`
+	Title       string                 `json:"title" binding:"required"`
+	Message     string                 `json:"message" binding:"required"`
+	Details     map[string]interface{} `json:"details"`
+	TriggeredBy string                 `json:"triggered_by"`
+}
+
+// UpdateAlertRequest is the API payload for updating an alert
+type UpdateAlertRequest struct {
+	Status     AlertStatus            `json:"status"`
+	ResolvedBy string                 `json:"resolved_by"`
+	Details    map[string]interface{} `json:"details"`
+}
+
+// ============================================================================
+// Service Dependency Models
+// ============================================================================
+
+// ServiceDependency represents a dependency between services
+type ServiceDependency struct {
+	ID             string
+	ServiceName    string
+	DependsOn      string
+	DependencyType string // "hard", "soft", "optional"
+	Description    string
+	IsActive       bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// ============================================================================
+// Status Snapshot Models
+// ============================================================================
+
+// SystemStatusSnapshot represents a snapshot of system status at a point in time
+type SystemStatusSnapshot struct {
+	ID                 string
+	OverallStatus      HealthCheckStatus
+	Services           map[string]HealthCheckStatus
+	ActiveAlertCount   int
+	ResolvedAlertCount int
+	UptimePercent      *float64
+	LatencyMs          *float64
+	ErrorRate          *float64
+	Metadata           map[string]interface{}
+	SnapshotTime       time.Time
+	CreatedAt          time.Time
+}
+
+// SystemStatusSummary represents a summary of system status
+type SystemStatusSummary struct {
+	OverallStatus     HealthCheckStatus
+	TotalServices     int
+	HealthyServices   int
+	DegradedServices  int
+	UnhealthyServices int
+	UnknownServices   int
+	ActiveAlerts      int
+	TotalAlerts       int
+	UptimePercent     float64
+	AvgLatencyMs      float64
+	ErrorRate         float64
+	Timestamp         time.Time
+}

@@ -28,6 +28,54 @@ type Repository interface {
 	GetIoTReadingsByType(ctx context.Context, projectID, sensorType string, limit int) ([]ingestion.IoTReading, error)
 	GetIoTReadingsByTimeRange(ctx context.Context, projectID string, start, end time.Time) ([]ingestion.IoTReading, error)
 
-	// Metrics methods - uses MetricRepository interface
+	// Metrics methods
 	MetricRepository
+
+	// ============================================================================
+	// Health Check Methods
+	// ============================================================================
+
+	SaveHealthCheck(ctx context.Context, check *ServiceHealthCheck) error
+	SaveHealthCheckResult(ctx context.Context, result *HealthCheckResult) error
+	GetHealthCheck(ctx context.Context, checkID string) (*ServiceHealthCheck, error)
+	GetHealthCheckResults(ctx context.Context, checkID string, limit int) ([]HealthCheckResult, error)
+	GetHealthChecksByService(ctx context.Context, serviceName string) ([]ServiceHealthCheck, error)
+	GetHealthCheckResultsByTimeRange(ctx context.Context, serviceName string, start, end time.Time) ([]HealthCheckResult, error)
+	GetLatestHealthCheckResult(ctx context.Context, serviceName string) (*HealthCheckResult, error)
+
+	// ============================================================================
+	// Alert Methods
+	// ============================================================================
+
+	SaveAlert(ctx context.Context, alert *SystemAlert) error
+	GetAlert(ctx context.Context, alertID string) (*SystemAlert, error)
+	ListAlerts(ctx context.Context, status AlertStatus, severity AlertSeverity, limit int) ([]SystemAlert, error)
+	ListAlertsByService(ctx context.Context, serviceName string, limit int) ([]SystemAlert, error)
+	UpdateAlert(ctx context.Context, alertID string, req UpdateAlertRequest) (*SystemAlert, error)
+	AcknowledgeAlert(ctx context.Context, alertID, acknowledgedBy string) error
+	ResolveAlert(ctx context.Context, alertID, resolvedBy string) error
+	GetActiveAlerts(ctx context.Context) ([]SystemAlert, error)
+	GetAlertCountsBySeverity(ctx context.Context) (map[AlertSeverity]int, error)
+
+	// ============================================================================
+	// Service Dependency Methods
+	// ============================================================================
+
+	SaveServiceDependency(ctx context.Context, dependency *ServiceDependency) error
+	GetServiceDependency(ctx context.Context, dependencyID string) (*ServiceDependency, error)
+	ListServiceDependencies(ctx context.Context, serviceName string) ([]ServiceDependency, error)
+	GetDependenciesByService(ctx context.Context, serviceName string) ([]ServiceDependency, error)
+	DeleteServiceDependency(ctx context.Context, dependencyID string) error
+	UpdateServiceDependency(ctx context.Context, dependencyID string, isActive bool) error
+
+	// ============================================================================
+	// Status Snapshot Methods
+	// ============================================================================
+
+	SaveStatusSnapshot(ctx context.Context, snapshot *SystemStatusSnapshot) error
+	GetStatusSnapshot(ctx context.Context, snapshotID string) (*SystemStatusSnapshot, error)
+	GetLatestStatusSnapshot(ctx context.Context) (*SystemStatusSnapshot, error)
+	ListStatusSnapshots(ctx context.Context, limit int) ([]SystemStatusSnapshot, error)
+	GetStatusSnapshotsByTimeRange(ctx context.Context, start, end time.Time) ([]SystemStatusSnapshot, error)
+	GetSystemStatusSummary(ctx context.Context) (*SystemStatusSummary, error)
 }
