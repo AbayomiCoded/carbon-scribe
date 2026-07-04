@@ -132,3 +132,36 @@ func (s *Service) ListIoTReadingsByType(ctx context.Context, projectID, sensorTy
 	}
 	return s.repo.GetIoTReadingsByType(ctx, projectID, sensorType, limit)
 }
+
+// MetricService methods
+func (s *Service) SaveMetric(ctx context.Context, metric *SystemMetric) error {
+	return s.repo.SaveMetric(ctx, metric)
+}
+
+func (s *Service) SaveMetricsBatch(ctx context.Context, metrics []SystemMetric) error {
+	return s.repo.SaveMetricsBatch(ctx, metrics)
+}
+
+func (s *Service) QueryMetrics(ctx context.Context, req MetricQueryRequest) ([]SystemMetric, error) {
+	return s.repo.QueryMetrics(ctx, req)
+}
+
+func (s *Service) GetMetricAggregation(ctx context.Context, req AggregationRequest) (*MetricAggregationResult, error) {
+	return s.repo.GetMetricAggregation(ctx, req)
+}
+
+func (s *Service) GetMetricRate(ctx context.Context, req RateRequest) (*RateResult, error) {
+	return s.repo.GetMetricRate(ctx, req)
+}
+
+func (s *Service) GetLatestMetric(ctx context.Context, metricName, service string) (*SystemMetric, error) {
+	return s.repo.GetLatestMetric(ctx, metricName, service)
+}
+
+func (s *Service) GetMetricLabels(ctx context.Context, metricName string) ([]map[string]string, error) {
+	return s.repo.GetMetricLabels(ctx, metricName)
+}
+
+func (s *Service) CleanupOldMetrics(ctx context.Context, retentionDays int) (int64, error) {
+	return s.repo.CleanupOldMetrics(ctx, retentionDays)
+}

@@ -27,4 +27,7 @@ type Repository interface {
 	GetIoTReadingsBySensor(ctx context.Context, projectID, sensorID string, limit int) ([]ingestion.IoTReading, error)
 	GetIoTReadingsByType(ctx context.Context, projectID, sensorType string, limit int) ([]ingestion.IoTReading, error)
 	GetIoTReadingsByTimeRange(ctx context.Context, projectID string, start, end time.Time) ([]ingestion.IoTReading, error)
+
+	// Metrics methods - uses MetricRepository interface
+	MetricRepository
 }
