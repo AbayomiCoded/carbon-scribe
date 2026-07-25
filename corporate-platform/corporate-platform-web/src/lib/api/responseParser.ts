@@ -22,8 +22,15 @@ function getContentTypeString(
 ): string {
   if (!target) return '';
   if (typeof target === 'string') return target.toLowerCase();
-  if (target instanceof Headers) return (target.get('content-type') || '').toLowerCase();
-  if (target instanceof Response) return (target.headers.get('content-type') || '').toLowerCase();
+  if (target instanceof Headers || (typeof (target as any).get === 'function')) {
+    return ((target as any).get('content-type') || '').toLowerCase();
+  }
+  if (target && typeof target === 'object' && 'headers' in target) {
+    const headers = (target as Response).headers;
+    if (headers && typeof headers.get === 'function') {
+      return (headers.get('content-type') || '').toLowerCase();
+    }
+  }
   return '';
 }
 
@@ -55,7 +62,12 @@ export function isHtmlResponse(
       trimmed.startsWith('<html') ||
       trimmed.includes('<head>') ||
       trimmed.includes('<body>') ||
-      trimmed.includes('<title>')
+      trimmed.includes('<title>') ||
+      trimmed.includes('<h1>') ||
+      trimmed.includes('<h2>') ||
+      trimmed.includes('<h3>') ||
+      trimmed.includes('<div>') ||
+      trimmed.includes('<p>')
     ) {
       return true;
     }
@@ -67,10 +79,12 @@ export function isHtmlResponse(
  * Check if the response is empty (204 No Content, 205 Reset Content, zero content-length, or empty body).
  */
 export function isEmptyResponse(response: Response, rawText?: string): boolean {
+  if (!response) return true;
   if (response.status === 204 || response.status === 205) {
     return true;
   }
-  const contentLength = response.headers.get('content-length');
+  const headers = response.headers;
+  const contentLength = headers && typeof headers.get === 'function' ? headers.get('content-length') : null;
   if (contentLength === '0') {
     return true;
   }
@@ -86,8 +100,9 @@ export function isEmptyResponse(response: Response, rawText?: string): boolean {
 export function isBinaryOrStreamResponse(
   target: Response | Headers | string | null | undefined,
 ): boolean {
-  if (target instanceof Response) {
-    const disposition = target.headers.get('content-disposition') || '';
+  if (target && typeof target === 'object' && 'headers' in target) {
+    const headers = (target as Response).headers;
+    const disposition = headers && typeof headers.get === 'function' ? headers.get('content-disposition') || '' : '';
     if (disposition.toLowerCase().includes('attachment')) {
       return true;
     }
@@ -134,8 +149,8 @@ export function getResponseBodyPreview(text: string, maxLength: number = 200): s
 export async function parseResponseBody<T = unknown>(
   response: Response,
 ): Promise<ParsedResponseBody<T>> {
-  const contentType = response.headers.get('content-type') || '';
-  const rawText = await response.text();
+  const contentType = getContentTypeString(response);
+  const rawText = (response && typeof response.text === 'function') ? await response.text() : '';
 
   const empty = isEmptyResponse(response, rawText);
   if (empty) {

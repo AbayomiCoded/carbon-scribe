@@ -197,7 +197,10 @@ class ApiClient {
           // Check if this is a retryable error (5xx, 408, 429)
           const isRetryable = response.status >= 500 || response.status === 408 || response.status === 429;
           if (isRetryable) {
-            throw new Error(parsedError.message);
+            const err = new Error(parsedError.message) as any;
+            err.status = response.status;
+            err.statusCode = response.status;
+            throw err;
           }
           
           return {
@@ -223,7 +226,7 @@ class ApiClient {
 
         return {
           success: true,
-          data: parsedResponse.data as T,
+          data: parsedResponse.isEmpty ? undefined : (parsedResponse.data as T),
           statusCode: response.status,
           timestamp: new Date().toISOString(),
         };
@@ -242,7 +245,7 @@ class ApiClient {
           };
         }
         
-        const parsedError = parseApiError(error);
+        const parsedError = parseApiError(error, error?.status ?? error?.statusCode);
         
         // Check if this is a retryable network error
         if (isRetryableError(error, 0)) {
@@ -278,6 +281,7 @@ class ApiClient {
         return {
           success: false,
           error: parsedError.message,
+          statusCode: error?.statusCode ?? error?.status ?? parsedError.statusCode,
           timestamp: new Date().toISOString(),
           parsedError,
         };

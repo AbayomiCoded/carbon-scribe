@@ -116,6 +116,15 @@ function extractMessage(body: unknown, statusCode?: number): string {
   if (typeof body === 'object' && body !== null) {
     const obj = body as Record<string, unknown>;
 
+    // Shape: { raw: string } - non-JSON text/HTML response fallback
+    if (typeof obj.raw === 'string') {
+      const htmlMessage = extractHtmlErrorMessage(obj.raw);
+      if (htmlMessage) {
+        return htmlMessage;
+      }
+      return obj.raw;
+    }
+
     // Shape: { message: string }
     if (typeof obj.message === 'string') {
       return obj.message;
