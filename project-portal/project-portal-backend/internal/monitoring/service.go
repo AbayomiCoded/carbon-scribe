@@ -21,6 +21,7 @@ type Service struct {
 }
 
 // NewService constructs a monitoring Service.
+func NewService(repo Repository) *Service {
 	return &Service{
 		pipeline:        ingestion.NewSatellitePipeline(repo),
 		webhookPipeline: ingestion.NewWebhookPipeline(repo),
@@ -119,7 +120,12 @@ func (s *Service) GetNDVITimeSeriesAnimation(ctx context.Context, projectID, z, 
 		"tiles": []map[string]interface{}{
 			{
 				"timestamp": start.Format(time.RFC3339),
-				"url":       fmt.Sprintf("/api/v1/monitoring/ndvi/tile/%s/%s/%s?project_id=%s&date_start=%s&date_end=%s", z, x, y, projectID, start.Format(time.RFC3339), start.Add(24*time.Hour).Format(time.RFC3339)),
+				"url": fmt.Sprintf(
+					"/api/v1/monitoring/ndvi/tile/%s/%s/%s?project_id=%s&date_start=%s&date_end=%s",
+					z, x, y, projectID,
+					start.Format(time.RFC3339),
+					start.Add(24*time.Hour).Format(time.RFC3339),
+				),
 			},
 		},
 	}, nil
