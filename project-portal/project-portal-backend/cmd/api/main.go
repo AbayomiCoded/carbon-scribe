@@ -22,7 +22,9 @@ import (
 	"carbon-scribe/project-portal/project-portal-backend/internal/health"
 	"carbon-scribe/project-portal/project-portal-backend/internal/integration"
 	integrationstellar "carbon-scribe/project-portal/project-portal-backend/internal/integration/stellar"
+	"carbon-scribe/project-portal/project-portal-backend/internal/monitoring"
 	"carbon-scribe/project-portal/project-portal-backend/internal/notifications"
+	"carbon-scribe/project-portal/project-portal-backend/internal/notifications/channels"
 	"carbon-scribe/project-portal/project-portal-backend/internal/project"
 	"carbon-scribe/project-portal/project-portal-backend/internal/project/inventory"
 	"carbon-scribe/project-portal/project-portal-backend/internal/project/methodology"
@@ -31,8 +33,12 @@ import (
 	"carbon-scribe/project-portal/project-portal-backend/internal/search"
 	"carbon-scribe/project-portal/project-portal-backend/internal/seed"
 	"carbon-scribe/project-portal/project-portal-backend/internal/settings"
+	"carbon-scribe/project-portal/project-portal-backend/pkg/aws"
 	"carbon-scribe/project-portal/project-portal-backend/pkg/elastic"
 	"carbon-scribe/project-portal/project-portal-backend/pkg/storage"
+
+	api "carbon-scribe/project-portal/project-portal-backend/api/v1"
+	"carbon-scribe/project-portal/project-portal-backend/internal/project/validation"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -119,11 +125,14 @@ func main() {
 	methodologyCapClient := integrationstellar.NewMethodologyClientFromEnv()
 	methodologyCapService := methodology.NewCapEnforcementService(methodologyCapRepo, methodologyRepo, methodologyCapClient)
 
+	// --- Methodology Compliance Validator ---
+	methodologyValidator := validation.NewMethodologyValidator(methodologyCapClient)
+
 	mintingCapValidator := minting.NewCapValidator(methodologyCapService)
 	mintingService := minting.NewService(db, nil, mintingCapValidator)
 	mintingHandler := minting.NewHandler(mintingService)
 
-	projectService := project.NewService(projectRepo, methodologyService, mintingService)
+	projectService := project.NewService(projectRepo, methodologyService, mintingService, validation.Validator(methodologyValidator))
 	projectHandler := project.NewHandler(projectService)
 
 	// Initialize document management service
@@ -193,6 +202,33 @@ func main() {
 	}
 	notificationsRepo := notifications.NewMongoRepository(notificationMongoClient, cfg.Notifications.MongoDatabase)
 	notificationsService := notifications.NewService(notificationsRepo)
+
+	// Set up the SMS sender based on configuration
+	var smsSender channels.SMSSender
+	switch strings.ToLower(cfg.Notifications.SMSProvider) {
+	case "aws_sns":
+		var initErr error
+		smsSender, initErr = channels.NewAWSSNSSender(aws.SNSConfig{
+			Region:          cfg.AWS.Region,
+			AccessKeyID:     cfg.AWS.AccessKeyID,
+			SecretAccessKey: cfg.AWS.SecretAccessKey,
+			Endpoint:        cfg.AWS.Endpoint,
+			SenderID:        cfg.Notifications.AWSSNSSenderID,
+		})
+		if initErr != nil {
+			log.Fatalf("❌ Failed to initialize AWS SNS SMS Sender: %v", initErr)
+		}
+	case "twilio":
+		smsSender = channels.NewTwilioSender(
+			cfg.Notifications.TwilioAccountSID,
+			cfg.Notifications.TwilioAuthToken,
+			cfg.Notifications.TwilioFromNumber,
+		)
+	default:
+		smsSender = &channels.MockSMSSender{}
+	}
+	notificationsService.SetSMSSender(smsSender)
+
 	notificationsHandler := notifications.NewHandler(notificationsService)
 
 	// Initialize inventory service for on-chain credit querying
@@ -202,6 +238,21 @@ func main() {
 	inventoryService := inventory.NewService(inventoryRepo, sorobanClient, inventoryCacheTTL)
 	inventoryHandler := inventory.NewHandler(inventoryService)
 	log.Println("✅ Credit inventory service initialized")
+
+	// ============================================================================
+	// Initialize Monitoring Service
+	// ============================================================================
+
+	// Get sql.DB from GORM for monitoring repository
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("❌ Failed to get underlying SQL DB for monitoring: %v", err)
+	}
+
+	monitoringRepo := monitoring.NewPostgresRepository(sqlDB)
+	monitoringService := monitoring.NewService(monitoringRepo)
+	monitoringHandler := api.NewMonitoringHandler(monitoringService)
+	log.Println("✅ Monitoring service initialized")
 
 	// Setup Gin
 	if !cfg.Debug {
@@ -220,7 +271,7 @@ func main() {
 			"service":   "carbon-scribe-project-portal",
 			"timestamp": time.Now().Format(time.RFC3339),
 			"version":   "1.0.0",
-			"modules":   []string{"auth", "collaboration", "documents", "integration", "reports", "search", "geospatial", "settings", "financing", "inventory", "notifications"},
+			"modules":   []string{"auth", "collaboration", "documents", "integration", "reports", "search", "geospatial", "settings", "financing", "inventory", "notifications", "monitoring"},
 		})
 	})
 
@@ -243,6 +294,7 @@ func main() {
 				"financing":     "/api/v1/financing/*",
 				"inventory":     "/api/v1/projects/:id/inventory/*",
 				"notifications": "/api/v1/notifications/*",
+				"monitoring":    "/api/v1/monitoring/*",
 			},
 		})
 	})
@@ -256,6 +308,9 @@ func main() {
 
 		// Register all project and quality routes (no duplicates)
 		project.RegisterRoutes(router, projectHandler, qualityHandler)
+
+		// Register methodology validation endpoints
+		validation.RegisterValidationRoutes(v1, methodologyValidator)
 
 		// Register inventory routes under v1 (on-chain credit queries)
 		inventoryHandler.RegisterRoutes(v1)
@@ -290,6 +345,11 @@ func main() {
 		// Register financing routes under v1
 		financingHandler.RegisterRoutes(v1)
 		mintingHandler.RegisterRoutes(v1)
+
+		// ============================================================================
+		// Register Monitoring Routes under v1
+		// ============================================================================
+		api.RegisterMonitoringRoutes(v1, monitoringHandler)
 
 		// Ping endpoint for testing
 		v1.GET("/ping", func(c *gin.Context) {
@@ -328,6 +388,7 @@ func main() {
 		fmt.Println("   - Settings: /api/v1/settings/*")
 		fmt.Println("   - Financing: /api/v1/financing/*")
 		fmt.Println("   - Notifications: /api/v1/notifications/*")
+		fmt.Println("   - Monitoring: /api/v1/monitoring/*")
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("❌ Server failed to start: %v", err)

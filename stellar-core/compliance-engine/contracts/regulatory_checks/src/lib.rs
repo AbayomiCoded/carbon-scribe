@@ -3,6 +3,9 @@ use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, BytesN, Env, String, Vec,
 };
 
+mod events;
+mod test;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub enum OperationType {
@@ -56,7 +59,7 @@ pub enum DataKey {
     PendingApproval(BytesN<32>),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[contracterror]
 pub enum ContractError {
     NotAuthorized = 1,
@@ -66,6 +69,7 @@ pub enum ContractError {
     InvalidApprovalKey = 5,
     ApprovalExpired = 6,
     NoMatchingRule = 7,
+    RuleConflict = 8, // New error for logical duplicate/conflict
 }
 
 #[contract]
@@ -102,6 +106,7 @@ impl RegulatoryCheck {
     // ========================================================================
 
     /// Add a new jurisdiction rule
+    /// Emits a RuleAdded event after the rule is stored successfully.
     pub fn add_rule(
         env: Env,
         caller: Address,
@@ -117,9 +122,31 @@ impl RegulatoryCheck {
 
         let rule_key = DataKey::Rule(rule.rule_id.clone());
 
-        // Check if rule already exists
+        // Check if rule_id already exists
         if env.storage().persistent().has(&rule_key) {
             return Err(ContractError::RuleAlreadyExists);
+        }
+
+        // Check for logical duplicate/conflict
+        let active_rules: Vec<String> = env
+            .storage()
+            .instance()
+            .get(&DataKey::ActiveRuleIds)
+            .unwrap_or(Vec::new(&env));
+        for i in 0..active_rules.len() {
+            let rid = active_rules.get(i).unwrap();
+            let existing_key = DataKey::Rule(rid.clone());
+            if let Some(existing_rule) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, JurisdictionRule>(&existing_key)
+            {
+                if Self::rules_conflict(&rule, &existing_rule) {
+                    // Compose a clear error message (not possible to return string in ContractError, so log it)
+                    soroban_sdk::log!(&env, "Rule conflict: attempted to add rule {:?} which conflicts with existing rule {:?}", rule, existing_rule);
+                    return Err(ContractError::RuleConflict);
+                }
+            }
         }
 
         // Store the rule
@@ -136,10 +163,35 @@ impl RegulatoryCheck {
             .instance()
             .set(&DataKey::ActiveRuleIds, &active_rules);
 
+        // Emit RuleAdded event after state changes
+        events::emit_rule_added_event(
+            &env,
+            rule.rule_id.clone(),
+            rule.source_jur.clone(),
+            rule.dest_jur.clone(),
+            rule.host_jur.clone(),
+            rule.operation,
+            rule.is_allowed,
+            rule.required_authority,
+            caller,
+        );
+
         Ok(())
     }
 
+    /// Returns true if two rules are logically equivalent or would cause enforcement ambiguity.
+    fn rules_conflict(a: &JurisdictionRule, b: &JurisdictionRule) -> bool {
+        // Consider rules conflicting if all key parameters match (except rule_id/description)
+        a.source_jur == b.source_jur
+            && a.dest_jur == b.dest_jur
+            && a.host_jur == b.host_jur
+            && a.operation == b.operation
+            && a.is_allowed == b.is_allowed
+            && a.required_authority == b.required_authority
+    }
+
     /// Update an existing rule
+    /// Emits a RuleUpdated event after the rule is updated.
     pub fn update_rule(
         env: Env,
         caller: Address,
@@ -155,16 +207,34 @@ impl RegulatoryCheck {
 
         let rule_key = DataKey::Rule(rule.rule_id.clone());
 
-        if !env.storage().persistent().has(&rule_key) {
-            return Err(ContractError::RuleNotFound);
-        }
+        // Retrieve the old rule before updating
+        let old_rule: JurisdictionRule = env
+            .storage()
+            .persistent()
+            .get(&rule_key)
+            .ok_or(ContractError::RuleNotFound)?;
 
+        // Compute hashes for change detection before overwriting
+        let old_rule_hash = events::compute_rule_hash(&env, &old_rule);
+        let new_rule_hash = events::compute_rule_hash(&env, &rule);
+
+        // Store the updated rule
         env.storage().persistent().set(&rule_key, &rule);
+
+        // Emit RuleUpdated event after state change
+        events::emit_rule_updated_event(
+            &env,
+            rule.rule_id.clone(),
+            old_rule_hash,
+            new_rule_hash,
+            caller,
+        );
 
         Ok(())
     }
 
     /// Deactivate a rule
+    /// Emits a RuleDeactivated event after the rule is removed.
     pub fn deactivate_rule(
         env: Env,
         caller: Address,
@@ -184,8 +254,10 @@ impl RegulatoryCheck {
             return Err(ContractError::RuleNotFound);
         }
 
+        // Remove the rule
         env.storage().persistent().remove(&rule_key);
 
+        // Remove from active rules list
         let active_rules: Vec<String> = env
             .storage()
             .instance()
@@ -202,6 +274,9 @@ impl RegulatoryCheck {
         env.storage()
             .instance()
             .set(&DataKey::ActiveRuleIds, &new_rules);
+
+        // Emit RuleDeactivated event after state changes
+        events::emit_rule_deactivated_event(&env, rule_id, caller);
 
         Ok(())
     }

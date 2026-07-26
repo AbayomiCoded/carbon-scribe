@@ -1,3 +1,4 @@
+import { getAccessToken } from '@/lib/auth/token-storage';
 import { apiClient, ApiResponse } from './api-client';
 import {
   ComplianceCheckResult,
@@ -5,6 +6,7 @@ import {
   ComplianceReport,
   CheckComplianceRequest,
 } from '@/types';
+import { reportError } from '@/lib/telemetry/errorReporter';
 
 /**
  * Compliance API Service
@@ -54,9 +56,7 @@ class ComplianceService {
   ): Promise<Blob | null> {
     try {
       const token =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('accessToken')
-          : null;
+        getAccessToken();
       const headers: HeadersInit = {
         Authorization: token ? `Bearer ${token}` : '',
       };
@@ -71,13 +71,13 @@ class ComplianceService {
       });
 
       if (!response.ok) {
-        console.error(`Failed to export report: ${response.statusText}`);
+        reportError(`Failed to export report: ${response.statusText}`, 'compliance.service', 'error', { entityId });
         return null;
       }
 
       return await response.blob();
     } catch (error) {
-      console.error('Error exporting compliance report:', error);
+      reportError(error, 'compliance.service', 'error', { entityId });
       return null;
     }
   }
