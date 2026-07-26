@@ -27,7 +27,11 @@ func (s *smokeCollaborationRepo) AddMember(ctx context.Context, member *collabor
 }
 
 func (s *smokeCollaborationRepo) GetMember(ctx context.Context, projectID, userID string) (*collaboration.ProjectMember, error) {
-	return nil, errors.New("not implemented")
+	return &collaboration.ProjectMember{
+		ProjectID: projectID,
+		UserID:    userID,
+		Role:      "owner",
+	}, nil
 }
 
 func (s *smokeCollaborationRepo) ListMembers(ctx context.Context, projectID string, limit, offset int) ([]collaboration.EnrichedProjectMember, error) {

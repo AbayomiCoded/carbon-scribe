@@ -447,11 +447,12 @@ func GetMaxLimit() int {
 // ValidatePagination validates and normalizes limit and offset values.
 // Returns sanitized limit, offset and an error if values are invalid.
 func ValidatePagination(limit, offset int) (int, int, error) {
+	// Treat negative values as defaults
 	if limit < 0 {
-		return 0, 0, errors.New("limit must be non-negative")
+		limit = 20
 	}
 	if offset < 0 {
-		return 0, 0, errors.New("offset must be non-negative")
+		offset = 0
 	}
 	maxLimit := GetMaxLimit()
 	if limit > maxLimit {

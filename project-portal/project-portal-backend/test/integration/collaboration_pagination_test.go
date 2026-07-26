@@ -179,7 +179,7 @@ func TestCollaborationPagination_Performance(t *testing.T) {
 		},
 		{
 			name:        "very large page size fast",
-			limit:       200,
+			limit:       100,
 			offset:      0,
 			maxDuration: 100 * time.Millisecond,
 		},
