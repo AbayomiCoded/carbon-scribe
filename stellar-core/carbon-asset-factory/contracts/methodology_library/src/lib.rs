@@ -147,7 +147,7 @@ impl MethodologyLibrary {
 
     fn is_whitespace_only(bytes: &Bytes) -> bool {
         for i in 0..bytes.len() {
-            if !bytes.get(i).is_ascii_whitespace() {
+            if !bytes.get(i).unwrap().is_ascii_whitespace() {
                 return false;
             }
         }
@@ -158,7 +158,7 @@ impl MethodologyLibrary {
         let mut dots = 0u32;
         let mut current_len = 0u32;
         for i in 0..bytes.len() {
-            let byte = bytes.get(i);
+            let byte = bytes.get(i).unwrap();
             if byte == b'.' {
                 if current_len == 0 {
                     return false;
@@ -180,7 +180,7 @@ impl MethodologyLibrary {
         if bytes.len() >= 8 {
             let mut match_https = true;
             for i in 0..8u32 {
-                if bytes.get(i) != https_prefix[i as usize] {
+                if bytes.get(i).unwrap() != https_prefix[i as usize] {
                     match_https = false;
                     break;
                 }
@@ -193,7 +193,7 @@ impl MethodologyLibrary {
         let http_prefix = [104u8, 116, 116, 112, 58, 47, 47];
         if bytes.len() >= 7 {
             for i in 0..7u32 {
-                if bytes.get(i) != http_prefix[i as usize] {
+                if bytes.get(i).unwrap() != http_prefix[i as usize] {
                     return false;
                 }
             }
