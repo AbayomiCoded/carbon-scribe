@@ -864,9 +864,8 @@ mod test {
         );
         client.add_authority(&admin, &authority);
 
-        let long_name = "A".repeat(101);
         let meta = MethodologyMeta {
-            name: String::from_str(&env, &long_name),
+            name: String::from_str(&env, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), // 101 A's
             version: String::from_str(&env, "1.0.0"),
             registry: String::from_str(&env, "VERRA"),
             registry_link: String::from_str(&env, "https://verra.org"),
@@ -1098,12 +1097,11 @@ mod test {
         );
         client.add_authority(&admin, &authority);
 
-        let long_url = format!("https://example.com/{}", "a".repeat(240));
         let meta = MethodologyMeta {
             name: String::from_str(&env, "Improved Forest Management"),
             version: String::from_str(&env, "1.0.0"),
             registry: String::from_str(&env, "VERRA"),
-            registry_link: String::from_str(&env, &long_url),
+            registry_link: String::from_str(&env, "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), // 256 chars > 255
             issuing_authority: authority.clone(),
             ipfs_cid: None,
         };
@@ -1132,11 +1130,10 @@ mod test {
         );
         client.add_authority(&admin, &authority);
 
-        let long_registry = "A".repeat(51);
         let meta = MethodologyMeta {
             name: String::from_str(&env, "Improved Forest Management"),
             version: String::from_str(&env, "1.0.0"),
-            registry: String::from_str(&env, &long_registry),
+            registry: String::from_str(&env, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), // 51 A's
             registry_link: String::from_str(&env, "https://verra.org"),
             issuing_authority: authority.clone(),
             ipfs_cid: None,
