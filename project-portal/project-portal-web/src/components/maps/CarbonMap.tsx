@@ -36,25 +36,6 @@ interface CarbonMapProps {
   onProjectClick?: (projectId: string, coordinates: [number, number]) => void;
 }
 
-/** Extended ProjectGeometry with optional properties */
-interface ExtendedProjectGeometry extends ProjectGeometry {
-  center?: {
-    lng: number;
-    lat: number;
-  };
-  areaHectares?: number;
-  carbonData?: {
-    density: number;
-    total: number;
-    unit: string;
-  };
-}
-
-/** Extended SatelliteImage with optional url */
-interface ExtendedSatelliteImage extends SatelliteImage {
-  url?: string;
-}
-
 // ============================================================================
 // Constants
 // ============================================================================
@@ -104,7 +85,7 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
   const [mapStyle, setMapStyle] = useState<MapStyle>("light");
   const [showSatellite, setShowSatellite] = useState(false);
   const [showCarbon, setShowCarbon] = useState(true);
-  const [geometry, setGeometry] = useState<ExtendedProjectGeometry | null>(null);
+  const [geometry, setGeometry] = useState<ProjectGeometry | null>(null);
   const [geometryLoading, setGeometryLoading] = useState(true);
   const [geometryError, setGeometryError] = useState<string | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -159,7 +140,7 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
           geo = await geospatialApi.getProjectGeometry(projectId);
         }
 
-        setGeometry(geo as ExtendedProjectGeometry);
+        setGeometry(geo as ProjectGeometry);
       } catch (err: any) {
         setGeometryError(err.message || "Failed to load project geometry");
         showErrorToast("Failed to load project geometry");
@@ -331,7 +312,7 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
 
     // Add satellite overlay if enabled
     if (showSatellite && satelliteImages.length > 0) {
-      addSatelliteOverlay(mapInstance, satelliteImages as ExtendedSatelliteImage[]);
+      addSatelliteOverlay(mapInstance, satelliteImages as SatelliteImage[]);
     }
 
     // Add geofences
@@ -350,7 +331,7 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
   // Layer Builders
   // ============================================================================
 
-  const addGeometryLayer = (mapInstance: mapboxgl.Map, geo: ExtendedProjectGeometry) => {
+  const addGeometryLayer = (mapInstance: mapboxgl.Map, geo: ProjectGeometry) => {
     const sourceId = `geometry-${geo.projectId}`;
 
     // Remove existing source if present
@@ -393,19 +374,20 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
     layers.current.push(outlineLayerId);
 
     // Add center marker if center coordinates exist
-    if (geo.center && geo.center.lng && geo.center.lat) {
+    const center = (geo as ProjectGeometry & { center?: { lng: number; lat: number } }).center;
+    if (center && center.lng && center.lat) {
       const marker = new mapboxgl.Marker({
         color: "#10B981",
         scale: 1.2,
         draggable: editable,
       })
-        .setLngLat([geo.center.lng, geo.center.lat])
+        .setLngLat([center.lng, center.lat])
         .addTo(mapInstance);
 
       markers.current.push(marker);
 
       // Add popup
-      const areaText = geo.areaHectares ? `${geo.areaHectares.toFixed(2)} ha` : "N/A";
+      const areaText = (geo as ProjectGeometry & { areaHectares?: number }).areaHectares ? `${(geo as ProjectGeometry & { areaHectares?: number }).areaHectares?.toFixed(2)} ha` : "N/A";
       const popup = new mapboxgl.Popup({ offset: 25 })
         .setHTML(`
           <div class="p-2">
@@ -420,11 +402,12 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
     }
   };
 
-  const addCarbonOverlay = (mapInstance: mapboxgl.Map, geo: ExtendedProjectGeometry) => {
+  const addCarbonOverlay = (mapInstance: mapboxgl.Map, geo: ProjectGeometry) => {
     // This would be a heatmap or choropleth based on carbon data
     // For now, we'll add a simple heatmap layer
     
-    if (!geo.carbonData || !mapInstance.getSource("carbon-scribe")) return;
+    const carbonData = (geo as ProjectGeometry & { carbonData?: { density: number; total: number; unit: string } }).carbonData;
+    if (!carbonData || !mapInstance.getSource("carbon-scribe")) return;
 
     const heatmapLayerId = `carbon-heatmap-${geo.projectId}`;
     
@@ -453,7 +436,7 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
     layers.current.push(heatmapLayerId);
   };
 
-  const addSatelliteOverlay = (mapInstance: mapboxgl.Map, images: ExtendedSatelliteImage[]) => {
+  const addSatelliteOverlay = (mapInstance: mapboxgl.Map, images: SatelliteImage[]) => {
     if (images.length === 0) return;
 
     const sourceId = "satellite-overlay";
@@ -464,7 +447,7 @@ export const CarbonMap: React.FC<CarbonMapProps> = ({
 
     // Use the most recent image or fallback to tile URL
     const latestImage = images[images.length - 1];
-    const tileUrl = latestImage?.url || geospatialApi.getTileUrl("{z}", "{x}", "{y}");
+    const tileUrl = (latestImage as SatelliteImage & { url?: string }).url || latestImage?.tileUrl || geospatialApi.getTileUrl("{z}", "{x}", "{y}");
 
     mapInstance.addSource(sourceId, {
       type: "raster",

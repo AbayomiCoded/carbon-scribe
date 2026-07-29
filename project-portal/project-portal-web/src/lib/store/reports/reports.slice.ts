@@ -14,6 +14,7 @@ import type {
   DatasetMetadata,
   WidgetConfig,
 } from "./reports.types";
+
 import * as api from "./reports.api";
 
 const DASHBOARD_SUMMARY_CACHE_MS = 60 * 1000;
@@ -93,7 +94,11 @@ export interface ReportsSlice {
   datasets: DatasetMetadata[];
   datasetsLoading: boolean;
   datasetsError: string | null;
-  fetchDatasets: () => Promise<void>;
+  datasetsPage: number;
+  datasetsPageSize: number;
+  datasetsTotal: number;
+  datasetsHasMore: boolean;
+  fetchDatasets: (params?: { page?: number; pageSize?: number }) => Promise<void>;
 
   benchmarkResult: BenchmarkComparisonResponse | null;
   benchmarkLoading: boolean;
@@ -132,6 +137,10 @@ const initialState = {
   datasets: [],
   datasetsLoading: false,
   datasetsError: null as string | null,
+  datasetsPage: 1,
+  datasetsPageSize: 8,
+  datasetsTotal: 0,
+  datasetsHasMore: false,
   benchmarkResult: null as BenchmarkComparisonResponse | null,
   benchmarkLoading: false,
   benchmarkError: null as string | null,
@@ -379,11 +388,31 @@ export const createReportsSlice: StateCreator<
     set((s) => ({ widgets: s.widgets.filter((w) => w.id !== widgetId) }));
   },
 
-  fetchDatasets: async () => {
-    set({ datasetsLoading: true, datasetsError: null });
+  fetchDatasets: async (params = {}) => {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 8;
+
+    if (page === 1) {
+      set({ datasetsLoading: true, datasetsError: null });
+    } else {
+      set((state) => ({ datasetsLoading: state.datasetsLoading, datasetsError: null }));
+    }
+
     try {
-      const datasets = await api.apiGetDatasets();
-      set({ datasets, datasetsLoading: false, datasetsError: null });
+      const response = await api.apiGetDatasets({ page, pageSize });
+      const datasets = response.datasets ?? [];
+      const total = response.total ?? datasets.length;
+      const hasMore = page * pageSize < total;
+
+      set((state) => ({
+        datasets: page === 1 ? datasets : [...state.datasets, ...datasets],
+        datasetsLoading: false,
+        datasetsError: null,
+        datasetsPage: page,
+        datasetsPageSize: pageSize,
+        datasetsTotal: total,
+        datasetsHasMore: hasMore,
+      }));
     } catch (e) {
       set({ datasetsLoading: false, datasetsError: (e as Error).message });
     }
