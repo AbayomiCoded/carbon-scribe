@@ -91,7 +91,7 @@ impl MethodologyLibrary {
         Ok(())
     }
 
-    fn validate_metadata(env: &Env, meta: &MethodologyMeta) -> Result<(), Error> {
+    fn validate_metadata(_env: &Env, meta: &MethodologyMeta) -> Result<(), Error> {
         // Validate name: non-empty, not whitespace-only, max 100 chars
         if meta.name.len() == 0 {
             return Err(Error::InvalidName);
