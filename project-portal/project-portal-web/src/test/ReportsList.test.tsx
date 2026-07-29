@@ -132,6 +132,12 @@ describe("ReportsList", () => {
       fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     });
 
-    expect(fetchReports).toHaveBeenCalledTimes(1);
+    expect(fetchReports).toHaveBeenCalledTimes(2);
+    expect(fetchReports.mock.calls[1][0]).toEqual({
+      category: undefined,
+      is_template: false,
+      page: 1,
+      page_size: 50,
+    });
   });
 });
