@@ -66,14 +66,17 @@ export async function apiCreateReport(
   });
 }
 
-export async function apiListReports(params?: {
-  category?: string;
-  visibility?: string;
-  is_template?: boolean;
-  search?: string;
-  page?: number;
-  page_size?: number;
-}): Promise<ListReportsResponse> {
+export async function apiListReports(
+  params?: {
+    category?: string;
+    visibility?: string;
+    is_template?: boolean;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  },
+  config?: { signal?: AbortSignal },
+): Promise<ListReportsResponse> {
   const q = new URLSearchParams();
   if (params?.category) q.set("category", params.category);
   if (params?.visibility) q.set("visibility", params.visibility);
@@ -86,6 +89,7 @@ export async function apiListReports(params?: {
   return reportsRequest<ListReportsResponse>({
     method: "GET",
     url: `reports?${q.toString()}`,
+    signal: config?.signal,
   });
 }
 
