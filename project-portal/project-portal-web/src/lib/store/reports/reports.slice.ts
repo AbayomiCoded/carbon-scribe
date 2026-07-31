@@ -22,11 +22,13 @@ export interface ReportsSlice {
   reports: ReportDefinition[];
   reportsTotal: number;
   reportsPage: number;
+  reportsQuery?: Parameters<typeof api.apiListReports>[0];
   reportsLoading: boolean;
   reportsError: string | null;
   currentReport: ReportDefinition | null;
   fetchReports: (
     params?: Parameters<typeof api.apiListReports>[0],
+    options?: { signal?: AbortSignal },
   ) => Promise<void>;
   fetchReport: (id: string) => Promise<void>;
   createReport: (body: CreateReportRequest) => Promise<ReportDefinition>;
@@ -108,6 +110,7 @@ const initialState = {
   reports: [],
   reportsTotal: 0,
   reportsPage: 1,
+  reportsQuery: undefined as Parameters<typeof api.apiListReports>[0] | undefined,
   reportsLoading: false,
   reportsError: null as string | null,
   currentReport: null as ReportDefinition | null,
@@ -145,10 +148,12 @@ export const createReportsSlice: StateCreator<
 > = (set, get) => ({
   ...initialState,
 
-  fetchReports: async (params) => {
-    set({ reportsLoading: true, reportsError: null });
+  fetchReports: async (params, options) => {
+    set({ reportsLoading: true, reportsError: null, reportsQuery: params });
     try {
-      const res = await api.apiListReports(params);
+      const res = await api.apiListReports(params, {
+        signal: options?.signal,
+      });
       set({
         reports: res.reports,
         reportsTotal: res.total,
@@ -157,6 +162,11 @@ export const createReportsSlice: StateCreator<
         reportsError: null,
       });
     } catch (e) {
+      const error = e as any;
+      if (error?.code === "ERR_CANCELED") {
+        set({ reportsLoading: false });
+        return;
+      }
       set({ reportsLoading: false, reportsError: (e as Error).message });
     }
   },
@@ -178,6 +188,9 @@ export const createReportsSlice: StateCreator<
       reportsTotal: s.reportsTotal + 1,
       currentReport: report,
     }));
+    get()
+      .fetchReports(get().reportsQuery ?? { page: 1, page_size: 50 })
+      .catch(() => {});
     return report;
   },
 
@@ -187,6 +200,9 @@ export const createReportsSlice: StateCreator<
       reports: s.reports.map((r) => (r.id === id ? updated : r)),
       currentReport: s.currentReport?.id === id ? updated : s.currentReport,
     }));
+    get()
+      .fetchReports(get().reportsQuery ?? { page: 1, page_size: 50 })
+      .catch(() => {});
   },
 
   deleteReport: async (id) => {
@@ -196,6 +212,9 @@ export const createReportsSlice: StateCreator<
       reportsTotal: Math.max(0, s.reportsTotal - 1),
       currentReport: s.currentReport?.id === id ? null : s.currentReport,
     }));
+    get()
+      .fetchReports(get().reportsQuery ?? { page: 1, page_size: 50 })
+      .catch(() => {});
   },
 
   cloneReport: async (id, name) => {
@@ -205,6 +224,9 @@ export const createReportsSlice: StateCreator<
       reportsTotal: s.reportsTotal + 1,
       currentReport: report,
     }));
+    get()
+      .fetchReports(get().reportsQuery ?? { page: 1, page_size: 50 })
+      .catch(() => {});
     return report;
   },
 
