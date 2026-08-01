@@ -16,6 +16,16 @@ import {
 } from './interfaces/logging-config.interface';
 import { ServicesConfig } from './interfaces/services-config.interface';
 
+export interface RateLimitConfig {
+  enabled: boolean;
+  defaultWindowMs: number;
+  defaultMaxRequests: number;
+  redisKeyPrefix: string;
+  enableMetrics: boolean;
+  enableLogging: boolean;
+  whitelistEnabled: boolean;
+}
+
 export interface AllConfig {
   app: AppConfig;
   database: DatabaseConfig;
@@ -25,6 +35,7 @@ export interface AllConfig {
   auth: AuthConfig;
   logging: LoggingConfig;
   services: ServicesConfig;
+  rateLimit: RateLimitConfig;
 }
 
 @Injectable()
@@ -71,6 +82,10 @@ export class ConfigService {
 
   getServicesConfig(): ServicesConfig {
     return this.config.services;
+  }
+
+  getRateLimitConfig(): RateLimitConfig {
+    return this.config.rateLimit;
   }
 
   private loadEnvFile(): void {
@@ -174,6 +189,23 @@ export class ConfigService {
       ipfsGateway: value.IPFS_GATEWAY || undefined,
     };
 
+    // Rate limit configuration with environment variable overrides
+    const rateLimit: RateLimitConfig = {
+      enabled: process.env.RATE_LIMIT_ENABLED !== 'false',
+      defaultWindowMs: parseInt(
+        process.env.RATE_LIMIT_DEFAULT_WINDOW_MS || '60000',
+        10,
+      ),
+      defaultMaxRequests: parseInt(
+        process.env.RATE_LIMIT_DEFAULT_MAX_REQUESTS || '10',
+        10,
+      ),
+      redisKeyPrefix: process.env.RATE_LIMIT_REDIS_PREFIX || 'rate-limit',
+      enableMetrics: process.env.RATE_LIMIT_METRICS_ENABLED !== 'false',
+      enableLogging: process.env.RATE_LIMIT_LOGGING_ENABLED !== 'false',
+      whitelistEnabled: process.env.RATE_LIMIT_WHITELIST_ENABLED !== 'false',
+    };
+
     return {
       app,
       database,
@@ -183,6 +215,7 @@ export class ConfigService {
       auth,
       logging,
       services,
+      rateLimit,
     };
   }
 }

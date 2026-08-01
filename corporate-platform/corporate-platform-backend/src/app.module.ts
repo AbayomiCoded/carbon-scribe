@@ -37,6 +37,8 @@ import { CbamModule } from './cbam/cbam.module';
 import { SbtiModule } from './sbti/sbti.module';
 import { HealthModule } from './health/health.module';
 import { DevBootstrapSeedService } from './dev/dev-bootstrap-seed.service';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
+
 
 @Module({
   imports: [
@@ -73,6 +75,7 @@ import { DevBootstrapSeedService } from './dev/dev-bootstrap-seed.service';
     CbamModule,
     SbtiModule,
     HealthModule,
+    RateLimitModule,
   ],
   controllers: [AppController],
   providers: [AppService, DevBootstrapSeedService],

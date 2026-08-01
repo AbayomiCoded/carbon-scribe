@@ -42,6 +42,7 @@ import {
 import { IpWhitelistGuard } from '../security/guards/ip-whitelist.guard';
 import { SecurityService } from '../security/security.service';
 import { SecurityEvents } from '../security/constants/security-events.constants';
+import { RateLimit, RateLimits } from '../rate-limit/rate-limit.decorator';
 
 /** How often (ms) the SSE feed polls for new retirements */
 const SSE_POLL_INTERVAL_MS = 5_000;
@@ -58,8 +59,15 @@ export class RetirementController {
     private securityService: SecurityService,
   ) {}
 
+  /**
+   * Retire carbon credits
+   * Rate limited to 3 retirements per minute per user
+   * Rate limited to 10 retirements per minute per company
+   */
   @Post()
   @Permissions(CREDIT_RETIRE)
+  @RateLimit(RateLimits.RETIREMENT)
+  @RateLimit(RateLimits.COMPANY_RETIREMENT)
   async retireCredits(
     @CurrentUser() user: JwtPayload,
     @Body() dto: RetireCreditsDto,
