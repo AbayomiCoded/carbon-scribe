@@ -70,7 +70,8 @@ export const RateLimits = {
     max: 30,
     windowMs: 60000,
     keyPrefix: 'similar-credits',
-    message: 'Too many similar credits requests. Please wait before trying again.',
+    message:
+      'Too many similar credits requests. Please wait before trying again.',
   },
 
   /**

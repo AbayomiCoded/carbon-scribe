@@ -9,16 +9,8 @@ import { DatabaseModule } from '../shared/database/database.module';
 @Global()
 @Module({
   imports: [DatabaseModule],
-  providers: [
-    RateLimitService,
-    RateLimitGuard,
-    RedisService,
-    SecurityService,
-  ],
-  exports: [
-    RateLimitService,
-    RateLimitGuard,
-  ],
+  providers: [RateLimitService, RateLimitGuard, RedisService, SecurityService],
+  exports: [RateLimitService, RateLimitGuard],
   controllers: [RateLimitController],
 })
 export class RateLimitModule {}

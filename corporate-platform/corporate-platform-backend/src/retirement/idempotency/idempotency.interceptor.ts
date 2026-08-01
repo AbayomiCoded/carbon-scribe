@@ -18,7 +18,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    const idempotencyKey = request.headers[IDEMPOTENCY_KEY_HEADER.toLowerCase()];
+    const idempotencyKey =
+      request.headers[IDEMPOTENCY_KEY_HEADER.toLowerCase()];
 
     // If no idempotency key, proceed without idempotency
     if (!idempotencyKey) {
@@ -40,7 +41,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
         // Add idempotency headers to response
         const res = context.switchToHttp().getResponse();
         res.setHeader(IDEMPOTENCY_KEY_HEADER, normalizedKey);
-        
+
         if (response?.isReplay) {
           res.setHeader('Idempotency-Result', 'replay');
         } else {

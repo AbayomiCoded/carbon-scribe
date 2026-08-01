@@ -39,7 +39,6 @@ import { HealthModule } from './health/health.module';
 import { DevBootstrapSeedService } from './dev/dev-bootstrap-seed.service';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 
-
 @Module({
   imports: [
     ConfigModule,

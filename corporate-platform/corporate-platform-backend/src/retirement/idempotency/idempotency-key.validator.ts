@@ -23,7 +23,8 @@ export class IdempotencyKeyValidator {
     if (!this.ALLOWED_PATTERN.test(key)) {
       return {
         valid: false,
-        error: 'Idempotency key must contain only alphanumeric characters, hyphens, and underscores',
+        error:
+          'Idempotency key must contain only alphanumeric characters, hyphens, and underscores',
       };
     }
 

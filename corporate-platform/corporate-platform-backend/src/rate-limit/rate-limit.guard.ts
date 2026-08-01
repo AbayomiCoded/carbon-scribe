@@ -12,6 +12,7 @@ import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_KEY } from './rate-limit.decorator';
 import { RateLimitDecoratorOptions } from './rate-limit.types';
 import { SecurityService } from '../security/security.service';
+import { SecurityEvents } from '../security/constants/security-events.constants';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -60,7 +61,10 @@ export class RateLimitGuard implements CanActivate {
 
     try {
       // Check rate limit
-      const result = await this.rateLimitService.checkRateLimit(key, defaultConfig);
+      const result = await this.rateLimitService.checkRateLimit(
+        key,
+        defaultConfig,
+      );
 
       // Set rate limit headers
       this.setRateLimitHeaders(response, result);
@@ -103,7 +107,10 @@ export class RateLimitGuard implements CanActivate {
   /**
    * Build rate limit key from request and config
    */
-  private buildKey(request: Request, config: RateLimitDecoratorOptions): string {
+  private buildKey(
+    request: Request,
+    config: RateLimitDecoratorOptions,
+  ): string {
     const parts: string[] = [];
 
     // Add user ID if authenticated
@@ -118,7 +125,10 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // Add IP address
-    const ip = this.rateLimitService.getClientIp(request.headers, request.connection);
+    const ip = this.rateLimitService.getClientIp(
+      request.headers,
+      request.connection,
+    );
     parts.push(`ip:${ip}`);
 
     // Add endpoint-specific parts
@@ -141,10 +151,13 @@ export class RateLimitGuard implements CanActivate {
     try {
       const user = (request as any).user;
       const companyId = user?.companyId || null;
-      const ip = this.rateLimitService.getClientIp(request.headers, request.connection);
+      const ip = this.rateLimitService.getClientIp(
+        request.headers,
+        request.connection,
+      );
 
       return await this.securityService.isIpAllowed(companyId, ip);
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -154,7 +167,10 @@ export class RateLimitGuard implements CanActivate {
    */
   private setRateLimitHeaders(response: Response, result: any): void {
     response.setHeader('X-RateLimit-Limit', result.max);
-    response.setHeader('X-RateLimit-Remaining', Math.max(0, result.max - result.current));
+    response.setHeader(
+      'X-RateLimit-Remaining',
+      Math.max(0, result.max - result.current),
+    );
     response.setHeader('X-RateLimit-Reset', Math.ceil(result.resetTime / 1000));
 
     if (result.retryAfter) {
@@ -172,7 +188,10 @@ export class RateLimitGuard implements CanActivate {
     result: any,
   ): Promise<void> {
     const user = (request as any).user;
-    const ip = this.rateLimitService.getClientIp(request.headers, request.connection);
+    const ip = this.rateLimitService.getClientIp(
+      request.headers,
+      request.connection,
+    );
 
     // Log violation
     await this.rateLimitService.logViolation({
@@ -193,7 +212,7 @@ export class RateLimitGuard implements CanActivate {
     // Log security event
     if (user?.sub) {
       await this.securityService.logEvent({
-        eventType: 'RATE_LIMIT_EXCEEDED',
+        eventType: SecurityEvents.RateLimitExceeded,
         userId: user.sub,
         companyId: user.companyId,
         ipAddress: ip,
@@ -202,7 +221,7 @@ export class RateLimitGuard implements CanActivate {
         method: request.method,
         status: 'blocked',
         statusCode: 429,
-        metadata: {
+        details: {
           rateLimit: {
             key,
             current: result.current,
@@ -217,7 +236,10 @@ export class RateLimitGuard implements CanActivate {
   /**
    * Track successful request
    */
-  private async trackRequest(request: Request, config: RateLimitDecoratorOptions): Promise<void> {
+  private async trackRequest(
+    request: Request,
+    config: RateLimitDecoratorOptions,
+  ): Promise<void> {
     const client = this.rateLimitService['redisService'].getClient();
     const endpoint = config.keyPrefix || 'default';
     const today = new Date().toISOString().slice(0, 10);
@@ -225,7 +247,7 @@ export class RateLimitGuard implements CanActivate {
     try {
       await client.incr(`rate-limit:requests:${endpoint}:${today}`);
       await client.expire(`rate-limit:requests:${endpoint}:${today}`, 86400);
-    } catch (error) {
+    } catch {
       // Ignore tracking errors
     }
   }
@@ -233,7 +255,10 @@ export class RateLimitGuard implements CanActivate {
   /**
    * Track blocked request
    */
-  private async trackBlockedRequest(request: Request, config: RateLimitDecoratorOptions): Promise<void> {
+  private async trackBlockedRequest(
+    request: Request,
+    config: RateLimitDecoratorOptions,
+  ): Promise<void> {
     const client = this.rateLimitService['redisService'].getClient();
     const endpoint = config.keyPrefix || 'default';
     const today = new Date().toISOString().slice(0, 10);
@@ -241,7 +266,7 @@ export class RateLimitGuard implements CanActivate {
     try {
       await client.incr(`rate-limit:blocked:${endpoint}:${today}`);
       await client.expire(`rate-limit:blocked:${endpoint}:${today}`, 86400);
-    } catch (error) {
+    } catch {
       // Ignore tracking errors
     }
   }

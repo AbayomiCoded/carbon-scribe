@@ -6,7 +6,6 @@ import {
   Body,
   UseGuards,
   Put,
-  Query,
 } from '@nestjs/common';
 import { AuctionService } from './auction.service';
 import { CreateAuctionDto } from './dto/create-auction.dto';

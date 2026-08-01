@@ -12,7 +12,6 @@ import {
   Sse,
   MessageEvent,
   Headers,
-  BadRequestException,
 } from '@nestjs/common';
 import {
   Observable,
@@ -46,10 +45,12 @@ import { IpWhitelistGuard } from '../security/guards/ip-whitelist.guard';
 import { SecurityService } from '../security/security.service';
 import { SecurityEvents } from '../security/constants/security-events.constants';
 import { RateLimit, RateLimits } from '../rate-limit/rate-limit.decorator';
-import { IdempotencyInterceptor, IDEMPOTENCY_KEY_HEADER } from './idempotency/idempotency.interceptor';
+import {
+  IdempotencyInterceptor,
+  IDEMPOTENCY_KEY_HEADER,
+} from './idempotency/idempotency.interceptor';
 import { IdempotencyKeyService } from './idempotency/idempotency-key.service';
 import { IdempotencyKeyValidator } from './idempotency/idempotency-key.validator';
-import { RetirementService } from './retirement.service';
 
 /** How often (ms) the SSE feed polls for new retirements */
 const SSE_POLL_INTERVAL_MS = 5_000;
@@ -65,7 +66,6 @@ export class RetirementController {
     private prisma: PrismaService,
     private securityService: SecurityService,
     private idempotencyKeyService: IdempotencyKeyService,
-    private retirementService: RetirementService,
   ) {}
 
   /**
@@ -90,7 +90,7 @@ export class RetirementController {
     // If idempotency key is provided, use idempotency-aware processing
     if (idempotencyKey) {
       const normalizedKey = IdempotencyKeyValidator.normalize(idempotencyKey);
-      
+
       // Process with idempotency
       const result = await this.idempotencyKeyService.processIdempotencyKey(
         normalizedKey,

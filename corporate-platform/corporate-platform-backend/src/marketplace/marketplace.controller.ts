@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { SearchService } from './services/search.service';
 import { RecommendationService } from './services/recommendation.service';
 import { DiscoveryService } from './services/discovery.service';
@@ -101,46 +91,5 @@ export class MarketplaceController {
   @Get('discovery')
   async discoveryOverview() {
     return this.discoveryService.getDiscoveryOverview();
-  }
-
-  // ── Cart endpoints ──────────────────────────────────────────────────────────
-
-  @Get('credits')
-  async getCredits(@Query() query: any) {
-    return this.marketplaceService.getCredits(query);
-  }
-
-  @Get('credits/:id')
-  async getCreditById(@Param('id') id: string) {
-    return this.marketplaceService.getCreditById(id);
-  }
-
-  @Post('cart')
-  async addToCart(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: any,
-  ) {
-    return this.marketplaceService.addToCart(user.companyId, user.sub, dto);
-  }
-
-  @Get('cart')
-  async getCart(@CurrentUser() user: JwtPayload) {
-    return this.marketplaceService.getCart(user.companyId, user.sub);
-  }
-
-  @Delete('cart/:itemId')
-  async removeFromCart(
-    @CurrentUser() user: JwtPayload,
-    @Param('itemId') itemId: string,
-  ) {
-    return this.marketplaceService.removeFromCart(user.companyId, user.sub, itemId);
-  }
-
-  @Post('checkout')
-  async checkout(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: any,
-  ) {
-    return this.marketplaceService.checkout(user.companyId, user.sub, dto);
   }
 }

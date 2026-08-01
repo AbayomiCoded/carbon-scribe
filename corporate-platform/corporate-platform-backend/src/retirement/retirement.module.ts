@@ -14,16 +14,16 @@ import { RetirementRecordingController } from './retirement-recording/retirement
 import { RetirementEventListener } from '../stellar/soroban/events/retirement-event.listener';
 import { IdempotencyKeyService } from './idempotency/idempotency-key.service';
 import { IdempotencyInterceptor } from './idempotency/idempotency.interceptor';
-import { RedisModule } from '../cache/redis.module';
-import { PrismaModule } from '../shared/database/prisma.module';
+import { CacheModule } from '../cache/cache.module';
+import { DatabaseModule } from '../shared/database/database.module';
 
 @Module({
   imports: [
     SecurityModule,
     StellarModule,
     SorobanModule,
-    RedisModule,
-    PrismaModule,
+    CacheModule,
+    DatabaseModule,
   ],
   providers: [
     RetirementService,

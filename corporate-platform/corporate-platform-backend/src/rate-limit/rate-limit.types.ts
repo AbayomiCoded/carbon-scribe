@@ -34,10 +34,13 @@ export interface RateLimitMetrics {
   allowedRequests: number;
   blockedRequests: number;
   violations: number;
-  byEndpoint: Record<string, {
-    requests: number;
-    blocked: number;
-  }>;
+  byEndpoint: Record<
+    string,
+    {
+      requests: number;
+      blocked: number;
+    }
+  >;
 }
 
 export interface RateLimitDecoratorOptions {

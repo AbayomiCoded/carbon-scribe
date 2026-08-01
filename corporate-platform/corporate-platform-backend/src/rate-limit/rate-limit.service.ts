@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../cache/redis.service';
-import { RateLimitConfig, RateLimitResult, RateLimitViolation } from './rate-limit.types';
+import {
+  RateLimitConfig,
+  RateLimitResult,
+  RateLimitViolation,
+} from './rate-limit.types';
 
 @Injectable()
 export class RateLimitService {
@@ -67,7 +71,9 @@ export class RateLimitService {
       };
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Rate limit check failed for key ${redisKey}: ${err.message}`);
+      this.logger.error(
+        `Rate limit check failed for key ${redisKey}: ${err.message}`,
+      );
 
       // On error, allow the request if configured to skip on error
       if (config.skipOnError) {
@@ -87,9 +93,7 @@ export class RateLimitService {
   /**
    * Log a rate limit violation
    */
-  async logViolation(
-    violation: RateLimitViolation,
-  ): Promise<void> {
+  async logViolation(violation: RateLimitViolation): Promise<void> {
     const client = this.redisService.getClient();
     const violationKey = `rate-limit:violations:${violation.endpoint}`;
     const key = `rate-limit:violations:${violation.endpoint}:${new Date().toISOString().slice(0, 10)}`;
@@ -126,10 +130,7 @@ export class RateLimitService {
   /**
    * Check if rate limiting should use graduated cooldown
    */
-  async getGraduatedCooldown(
-    key: string,
-    windowMs: number,
-  ): Promise<number> {
+  async getGraduatedCooldown(key: string, windowMs: number): Promise<number> {
     const client = this.redisService.getClient();
     const violationKey = `rate-limit:violations:${key}`;
 
@@ -208,7 +209,10 @@ export class RateLimitService {
   /**
    * Extract IP from request, handling proxies
    */
-  getClientIp(headers: Record<string, string | string[]>, connection: any): string {
+  getClientIp(
+    headers: Record<string, string | string[]>,
+    connection: any,
+  ): string {
     const forwarded = headers['x-forwarded-for'];
     if (forwarded) {
       const ips = Array.isArray(forwarded) ? forwarded : forwarded.split(',');

@@ -1,4 +1,4 @@
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { RedisService } from '../../cache/redis.service';
 import { IdempotencyKeyValidator } from './idempotency-key.validator';
@@ -48,7 +48,7 @@ export class IdempotencyKeyService {
 
     // Check for existing processed call
     const existingCall = await this.findExistingCall(normalizedKey, companyId);
-    
+
     if (existingCall) {
       // If the call is still pending, return the pending status
       if (existingCall.status === ContractCallStatus.PENDING) {
@@ -68,10 +68,13 @@ export class IdempotencyKeyService {
 
       // If confirmed, return cached result
       if (existingCall.status === ContractCallStatus.CONFIRMED) {
-        this.logger.log(`Idempotency key ${normalizedKey} found, returning cached result`, {
-          callId: existingCall.id,
-          workflowId: existingCall.workflowId,
-        });
+        this.logger.log(
+          `Idempotency key ${normalizedKey} found, returning cached result`,
+          {
+            callId: existingCall.id,
+            workflowId: existingCall.workflowId,
+          },
+        );
         return {
           isReplay: true,
           result: existingCall.result as T,
@@ -86,10 +89,13 @@ export class IdempotencyKeyService {
 
       // If failed, allow retry but mark as retry
       if (existingCall.status === ContractCallStatus.FAILED) {
-        this.logger.log(`Idempotency key ${normalizedKey} has failed call, allowing retry`, {
-          callId: existingCall.id,
-          workflowId: existingCall.workflowId,
-        });
+        this.logger.log(
+          `Idempotency key ${normalizedKey} has failed call, allowing retry`,
+          {
+            callId: existingCall.id,
+            workflowId: existingCall.workflowId,
+          },
+        );
         // Continue to processing but with retry context
       }
     }
@@ -141,7 +147,8 @@ export class IdempotencyKeyService {
         isReplay: false,
         result: result as T,
         status: ContractCallStatus.CONFIRMED,
-        transactionHash: call.transactionHash || result?.transactionHash,
+        transactionHash:
+          call.transactionHash || (result as any)?.transactionHash,
         callId: call.id,
         workflowId: call.workflowId || `retirement-${Date.now()}`,
         idempotencyKey: normalizedKey,
@@ -182,7 +189,13 @@ export class IdempotencyKeyService {
   private async acquireLock(lockKey: string): Promise<boolean> {
     const client = this.redisService.getClient();
     try {
-      const result = await client.set(lockKey, 'locked', 'NX', 'PX', this.LOCK_TTL);
+      const result = await client.set(
+        lockKey,
+        'locked',
+        'PX',
+        this.LOCK_TTL,
+        'NX',
+      );
       return result === 'OK';
     } catch (error) {
       const err = error as Error;
@@ -256,7 +269,7 @@ export class IdempotencyKeyService {
         isDuplicate: false,
         maxRetries: 3,
         retryCount: 0,
-        metadata: metadata as any || {},
+        metadata: (metadata as any) || {},
         submittedAt: new Date(),
         confirmedAt: new Date(),
       },
@@ -272,7 +285,7 @@ export class IdempotencyKeyService {
     errorMessage: string,
   ): Promise<void> {
     const existing = await this.findExistingCall(idempotencyKey, companyId);
-    
+
     if (existing) {
       await this.prisma.contractCall.update({
         where: { id: existing.id },
@@ -341,9 +354,13 @@ export class IdempotencyKeyService {
 
     return {
       totalCalls: calls.length,
-      confirmedCalls: calls.filter(c => c.status === ContractCallStatus.CONFIRMED).length,
-      failedCalls: calls.filter(c => c.status === ContractCallStatus.FAILED).length,
-      pendingCalls: calls.filter(c => c.status === ContractCallStatus.PENDING).length,
+      confirmedCalls: calls.filter(
+        (c) => c.status === ContractCallStatus.CONFIRMED,
+      ).length,
+      failedCalls: calls.filter((c) => c.status === ContractCallStatus.FAILED)
+        .length,
+      pendingCalls: calls.filter((c) => c.status === ContractCallStatus.PENDING)
+        .length,
     };
   }
 
