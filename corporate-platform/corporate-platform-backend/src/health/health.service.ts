@@ -4,17 +4,18 @@ import { RedisService } from '../cache/redis.service';
 import { KafkaService } from '../event-bus/kafka.service';
 import { IpfsConfig } from '../ipfs/ipfs.config';
 import { SorobanService } from '../stellar/soroban/soroban.service';
+import { ConfigService } from '../config/config.service';
 import axios from 'axios';
 
 export interface HealthCheckDetail {
-  status: 'healthy' | 'unhealthy' | 'disabled';
+  status: 'healthy' | 'unhealthy' | 'disabled' | 'warning';
   latencyMs?: number;
   error?: string;
   details?: string;
 }
 
 export interface ReadinessResponse {
-  status: 'healthy' | 'unhealthy';
+  status: 'healthy' | 'unhealthy' | 'degraded';
   timestamp: string;
   version: string;
   uptimeSeconds: number;
@@ -38,6 +39,7 @@ export class HealthService {
     private readonly kafkaService: KafkaService,
     private readonly ipfsConfig: IpfsConfig,
     private readonly sorobanService: SorobanService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -54,8 +56,9 @@ export class HealthService {
       ]);
       return { status: 'healthy', latencyMs: Date.now() - start };
     } catch (err) {
-      this.logger.error('Database health check failed', err.stack);
-      return { status: 'unhealthy', error: err.message };
+      const error = err as Error;
+      this.logger.error('Database health check failed', error.stack);
+      return { status: 'unhealthy', error: error.message };
     }
   }
 
@@ -77,8 +80,9 @@ export class HealthService {
       ]);
       return { status: 'healthy', latencyMs: Date.now() - start };
     } catch (err) {
-      this.logger.error('Redis health check failed', err.stack);
-      return { status: 'unhealthy', error: err.message };
+      const error = err as Error;
+      this.logger.error('Redis health check failed', error.stack);
+      return { status: 'unhealthy', error: error.message };
     }
   }
 
@@ -103,8 +107,9 @@ export class HealthService {
       ]);
       return { status: 'healthy', latencyMs: Date.now() - start };
     } catch (err) {
-      this.logger.error('Kafka health check failed', err.stack);
-      return { status: 'unhealthy', error: err.message };
+      const error = err as Error;
+      this.logger.error('Kafka health check failed', error.stack);
+      return { status: 'unhealthy', error: error.message };
     }
   }
 
@@ -140,16 +145,17 @@ export class HealthService {
 
       return { status: 'healthy', latencyMs: Date.now() - start };
     } catch (err) {
+      const error = err as any;
       // If we get an HTTP response back, the endpoint is reachable (network connectivity is up)
-      if (err.response) {
+      if (error.response) {
         return {
           status: 'healthy',
           latencyMs: Date.now() - start,
-          details: `Reachable (HTTP Status: ${err.response.status})`,
+          details: `Reachable (HTTP Status: ${error.response.status})`,
         };
       }
-      this.logger.error('IPFS reachability check failed', err.stack);
-      return { status: 'unhealthy', error: err.message };
+      this.logger.error('IPFS reachability check failed', error.stack);
+      return { status: 'unhealthy', error: error.message };
     }
   }
 
@@ -177,8 +183,9 @@ export class HealthService {
       ]);
       return { status: 'healthy', latencyMs: Date.now() - start };
     } catch (err) {
-      this.logger.error('Stellar health check failed', err.stack);
-      return { status: 'unhealthy', error: err.message };
+      const error = err as Error;
+      this.logger.error('Stellar health check failed', error.stack);
+      return { status: 'unhealthy', error: error.message };
     }
   }
 
@@ -203,8 +210,18 @@ export class HealthService {
       ipfsResult.status === 'healthy' &&
       stellarResult.status === 'healthy';
 
+    const isDegraded =
+      !isHealthy &&
+      (dbResult.status === 'healthy' ||
+        redisResult.status === 'healthy' ||
+        (kafkaResult.status === 'healthy' || kafkaResult.status === 'disabled') ||
+        ipfsResult.status === 'healthy' ||
+        stellarResult.status === 'healthy');
+
+    const status = isHealthy ? 'healthy' : isDegraded ? 'degraded' : 'unhealthy';
+
     return {
-      status: isHealthy ? 'healthy' : 'unhealthy',
+      status,
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || '0.0.1',
       uptimeSeconds: Math.floor((Date.now() - this.startTime) / 1000),

@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from './config/config.service';
+import { StartupValidator } from './config/validation/startup-validator';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from '@nestjs/common';
@@ -30,6 +31,22 @@ async function bootstrap() {
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   const logger = new Logger('Bootstrap');
+
+  // ============================================================================
+  // Run Startup Validation
+  // ============================================================================
+  const startupValidator = app.get(StartupValidator);
+  try {
+    const result = await startupValidator.validateStartup();
+    if (!result.valid) {
+      logger.error('❌ Startup validation failed. Check errors above.');
+      process.exit(1);
+    }
+  } catch (error) {
+    const err = error as Error;
+    logger.error(`❌ Startup validation error: ${err.message}`);
+    process.exit(1);
+  }
 
   // ============================================================================
   // Helmet HTTP Hardening Middleware
