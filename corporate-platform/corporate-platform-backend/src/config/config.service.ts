@@ -36,7 +36,7 @@ export class ConfigService {
     this.config = this.buildConfig();
   }
 
-  reload() {
+  reload(): void {
     this.loadEnvFile();
     this.config = this.buildConfig();
   }
@@ -73,7 +73,7 @@ export class ConfigService {
     return this.config.services;
   }
 
-  private loadEnvFile() {
+  private loadEnvFile(): void {
     const explicitPath = process.env.CONFIG_FILE;
     if (explicitPath && existsSync(explicitPath)) {
       dotenv.config({ path: explicitPath });
@@ -104,6 +104,7 @@ export class ConfigService {
       serviceName: value.SERVICE_NAME,
     };
 
+    // Basic production validation (additional validation handled by StartupValidator)
     if (app.nodeEnv === 'production') {
       if (!value.DATABASE_URL) {
         throw new Error('DATABASE_URL is required in production');
