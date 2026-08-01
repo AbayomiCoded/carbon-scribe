@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { X, ShoppingCart, CreditCard, Trash2, CheckCircle, AlertCircle, Loader2, ChevronLeft } from 'lucide-react'
 import { useCorporate } from '@/contexts/CorporateContext'
 import { useAccessibility } from '@/hooks/useAccessibility'
@@ -32,10 +32,86 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null)
   const { labels, getRemoveItemLabel } = useAccessibility()
   const { announce } = useAnnouncement()
+  
+  // Refs for focus management
+  const containerRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const firstFocusableRef = useRef<HTMLElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
 
   const subtotal = cart.reduce((sum, item) => sum + item.pricePerTon * 1000, 0)
   const serviceFee = subtotal * 0.05
   const total = subtotal + serviceFee
+
+  // Focus trap and management
+  useEffect(() => {
+    if (!isOpen) return
+
+    // Store the currently focused element
+    previousFocusRef.current = document.activeElement as HTMLElement
+
+    // Focus the container or close button
+    const focusTarget = closeButtonRef.current || containerRef.current
+    if (focusTarget) {
+      setTimeout(() => {
+        focusTarget.focus()
+      }, 100)
+    }
+
+    // Handle escape key
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    // Trap focus within the sidebar
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !containerRef.current) return
+
+      const focusableElements = containerRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      
+      if (focusableElements.length === 0) return
+
+      const firstElement = focusableElements[0] as HTMLElement
+      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault()
+        lastElement.focus()
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleTabKey)
+
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keydown', handleTabKey)
+      document.body.style.overflow = ''
+
+      // Restore focus
+      if (previousFocusRef.current) {
+        previousFocusRef.current.focus()
+      }
+    }
+  }, [isOpen, onClose])
+
+  // Announce when cart opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      const itemCount = cart.length
+      announce(`Cart opened with ${itemCount} ${itemCount === 1 ? 'item' : 'items'}`, 'polite')
+    }
+  }, [isOpen, cart.length, announce])
 
   const handleProceedToConfirm = () => {
     setStep('confirm')
@@ -99,6 +175,8 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   if (!isOpen) return null
 
+  const getTitleId = 'cart-sidebar-title'
+
   return (
     <>
       {/* Overlay */}
@@ -110,10 +188,12 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
       {/* Sidebar */}
       <div 
-        className="fixed inset-y-0 right-0 w-full md:w-96 bg-white dark:bg-gray-900 z-50 shadow-2xl transform transition-transform duration-300"
+        ref={containerRef}
+        className="fixed inset-y-0 right-0 w-full md:w-96 bg-white dark:bg-gray-900 z-50 shadow-2xl transform transition-transform duration-300 focus:outline-none"
         role="dialog"
         aria-modal="true"
-        aria-label="Shopping cart"
+        aria-labelledby={getTitleId}
+        tabIndex={-1}
       >
         <div className="h-full flex flex-col">
           {/* Header */}
@@ -135,7 +215,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   <ShoppingCart className="text-corporate-blue mr-3" size={24} />
                 </AccessibleIcon>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h2 id={getTitleId} className="text-xl font-bold text-gray-900 dark:text-white">
                     {step === 'cart' && 'Shopping Cart'}
                     {step === 'confirm' && 'Confirm Purchase'}
                     {step === 'processing' && 'Processing…'}
@@ -150,6 +230,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 </div>
               </div>
               <IconButton
+                ref={closeButtonRef}
                 label={labels.closeCart}
                 onClick={handleClose}
                 disabled={step === 'processing'}
@@ -181,8 +262,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {cart.map((item) => (
-                      <div key={item.id} className="corporate-card p-4">
+                    {cart.map((item, index) => (
+                      <div 
+                        key={item.id} 
+                        className="corporate-card p-4"
+                        role="listitem"
+                        aria-label={`${item.projectName} in cart`}
+                      >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900 dark:text-white line-clamp-2">
