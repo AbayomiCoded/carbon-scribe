@@ -144,12 +144,29 @@ export const createHealthSlice: StateCreator<HealthSlice> = (set, get) => ({
         }
     },
 
+    /**
+     * Fetch uptime statistics from the API
+     * Updates the uptimeStats state with the response
+     */
     fetchUptimeStats: async () => {
+        set((state) => ({
+            healthLoading: { ...state.healthLoading, isFetchingStatus: true },
+            healthErrors: { ...state.healthErrors, status: null },
+        }));
         try {
             const data = await fetchUptimeApi();
-            set({ uptimeStats: data });
+            set((state) => ({
+                uptimeStats: data,
+                healthLoading: { ...state.healthLoading, isFetchingStatus: false },
+            }));
         } catch (error) {
-            console.error('Failed to fetch uptime stats:', getErrorMessage(error));
+            const errorMessage = getErrorMessage(error);
+            set((state) => ({
+                healthLoading: { ...state.healthLoading, isFetchingStatus: false },
+                healthErrors: { ...state.healthErrors, status: errorMessage },
+            }));
+            // Log error but don't throw - we want to handle gracefully
+            console.error('Failed to fetch uptime stats:', errorMessage);
         }
     },
 
