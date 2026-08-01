@@ -77,6 +77,7 @@ export interface HealthSlice {
     isFetchingAlerts: boolean;
     isFetchingDependencies: boolean;
     isAcknowledgingAlert: boolean;
+    isFetchingUptime: boolean;
   };
   healthErrors: {
     status: string | null;
@@ -85,6 +86,7 @@ export interface HealthSlice {
     alerts: string | null;
     dependencies: string | null;
     acknowledge: string | null;
+    uptime: string | null;
   };
 
   // Actions

@@ -25,6 +25,7 @@ const initialState = {
         isFetchingAlerts: false,
         isFetchingDependencies: false,
         isAcknowledgingAlert: false,
+        isFetchingUptime: false,
     },
     healthErrors: {
         status: null,
@@ -33,6 +34,7 @@ const initialState = {
         alerts: null,
         dependencies: null,
         acknowledge: null,
+        uptime: null,
     },
 };
 
@@ -150,20 +152,20 @@ export const createHealthSlice: StateCreator<HealthSlice> = (set, get) => ({
      */
     fetchUptimeStats: async () => {
         set((state) => ({
-            healthLoading: { ...state.healthLoading, isFetchingStatus: true },
-            healthErrors: { ...state.healthErrors, status: null },
+            healthLoading: { ...state.healthLoading, isFetchingUptime: true },
+            healthErrors: { ...state.healthErrors, uptime: null },
         }));
         try {
             const data = await fetchUptimeApi();
             set((state) => ({
                 uptimeStats: data,
-                healthLoading: { ...state.healthLoading, isFetchingStatus: false },
+                healthLoading: { ...state.healthLoading, isFetchingUptime: false },
             }));
         } catch (error) {
             const errorMessage = getErrorMessage(error);
             set((state) => ({
-                healthLoading: { ...state.healthLoading, isFetchingStatus: false },
-                healthErrors: { ...state.healthErrors, status: errorMessage },
+                healthLoading: { ...state.healthLoading, isFetchingUptime: false },
+                healthErrors: { ...state.healthErrors, uptime: errorMessage },
             }));
             // Log error but don't throw - we want to handle gracefully
             console.error('Failed to fetch uptime stats:', errorMessage);

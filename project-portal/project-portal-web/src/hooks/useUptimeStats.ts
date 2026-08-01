@@ -32,8 +32,8 @@ interface UseUptimeStatsReturn {
  */
 export function useUptimeStats(period: UptimePeriod = '30d'): UseUptimeStatsReturn {
   const uptimeStats = useStore((state) => state.uptimeStats);
-  const isLoading = useStore((state) => state.healthLoading.isFetchingStatus);
-  const statusError = useStore((state) => state.healthErrors.status);
+  const isLoading = useStore((state) => state.healthLoading.isFetchingUptime);
+  const statusError = useStore((state) => state.healthErrors.uptime);
   const fetchUptimeStats = useStore((state) => state.fetchUptimeStats);
   const fetchDetailedStatus = useStore((state) => state.fetchDetailedStatus);
 

@@ -50,6 +50,8 @@ export default function SystemStatusBanner() {
     const statusError = useStore((state) => state.healthErrors.status);
     const fetchDetailedStatus = useStore((state) => state.fetchDetailedStatus);
     const fetchUptimeStats = useStore((state) => state.fetchUptimeStats);
+    const status = detailedStatus?.overallStatus ?? 'Unknown';
+    const statusConfig = useMemo(() => getStatusConfig(status), [status]);
 
     useEffect(() => {
         // Fetch both status and uptime on mount
@@ -101,9 +103,7 @@ export default function SystemStatusBanner() {
         );
     }
 
-    const status = detailedStatus.overallStatus ?? 'Unknown';
     const affectedServicesCount = Math.max(0, detailedStatus.totalServicesCount - detailedStatus.healthyServicesCount);
-    const statusConfig = useMemo(() => getStatusConfig(status), [status]);
     const updatedAtText = formatUpdatedAt(detailedStatus.timestamp);
 
     return (

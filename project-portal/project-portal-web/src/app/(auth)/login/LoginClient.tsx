@@ -75,12 +75,8 @@ export default function LoginClient() {
           'Please verify your email address before accessing the portal. A verification link was sent to your email.'
         );
         showToast(
-          'warning',
-          'Email not verified. Please check your inbox for the verification link.',
-          {
-            duration: 'long',
-            description: 'You can request a new verification email if needed.',
-          }
+          'error',
+          'Email not verified. Please check your inbox for the verification link. You can request a new verification email if needed.'
         );
         // Don't redirect - stay on login page
         return;
@@ -96,12 +92,8 @@ export default function LoginClient() {
           'Your email is not verified. Please check your inbox for the verification link or request a new one.'
         );
         showToast(
-          'warning',
-          'Email not verified. Please verify your email to continue.',
-          {
-            duration: 'long',
-            description: 'Check your inbox for the verification link.',
-          }
+          'error',
+          'Email not verified. Please verify your email to continue. Check your inbox for the verification link.'
         );
       } else {
         showToast('error', err?.response?.data?.error || err?.message || 'Login failed');

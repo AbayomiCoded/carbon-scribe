@@ -81,11 +81,7 @@ export default function RegisterClient() {
       // Show success toast with verification message
       showToast(
         'success',
-        response?.message || 'Account created! Please check your email to verify your account before logging in.',
-        {
-          duration: 'long',
-          description: 'A verification link has been sent to your email address.',
-        }
+        `${response?.message || 'Account created! Please check your email to verify your account before logging in.'} A verification link has been sent to your email address.`
       );
       
       // Redirect to verification prompt page instead of login
