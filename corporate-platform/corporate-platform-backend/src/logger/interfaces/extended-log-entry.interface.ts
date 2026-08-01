@@ -1,20 +1,6 @@
-export interface LogEntry {
-  timestamp: string;
-  level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
-  service: string;
-  environment: string;
-  message: string;
+import { LogEntry } from './log-entry.interface';
 
-  // Request context
-  requestId?: string;
-  userId?: string;
-  companyId?: string;
-  ip?: string;
-  method?: string;
-  path?: string;
-  statusCode?: number;
-  duration?: number;
-
+export interface ExtendedLogEntry extends LogEntry {
   // Distributed tracing
   traceId?: string;
   spanId?: string;
@@ -34,21 +20,14 @@ export interface LogEntry {
     projectId?: string;
     complianceReportId?: string;
     assessmentId?: string;
-    [key: string]: string | undefined;
+    contractId?: string;
+    companyTargetId?: string;
   };
 
   // Additional context
   apiVersion?: string;
   userAgent?: string;
   referer?: string;
-
-  // Error
-  error?: {
-    name: string;
-    message: string;
-    stack?: string;
-    code?: string;
-  };
 
   // Error enrichment
   errorCode?: string;
@@ -59,9 +38,6 @@ export interface LogEntry {
     sampled: boolean;
     sampleRate: number;
   };
-
-  // Metadata
-  metadata?: Record<string, any>;
 
   // Request/response bodies (development only)
   requestBody?: any;

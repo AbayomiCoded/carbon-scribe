@@ -31,7 +31,9 @@ export default function PlatformShell({ children }: PlatformShellProps) {
       <ConnectivityProvider>
         <div className="flex min-h-screen flex-col">
           <AuthNavbar />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1" role="main">
+            {children}
+          </main>
         </div>
       </ConnectivityProvider>
     )
@@ -40,7 +42,11 @@ export default function PlatformShell({ children }: PlatformShellProps) {
   if (isLoading) {
     return (
       <ConnectivityProvider>
-        <div className="flex min-h-screen items-center justify-center text-gray-500 dark:text-gray-400">
+        <div 
+          className="flex min-h-screen items-center justify-center text-gray-500 dark:text-gray-400"
+          role="status"
+          aria-live="polite"
+        >
           Loading session...
         </div>
       </ConnectivityProvider>
@@ -59,7 +65,11 @@ export default function PlatformShell({ children }: PlatformShellProps) {
           <SessionExpiryBanner />
           <CorporateNavbar />
           <ConnectionStatus />
-          <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+          <main 
+            className="flex-1 overflow-auto p-4 md:p-6 lg:p-8"
+            role="main"
+            aria-label="Main content"
+          >
             <div className="mx-auto w-full max-w-7xl">
               <RouteGuard>{children}</RouteGuard>
             </div>
