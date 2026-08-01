@@ -8,8 +8,11 @@ import {
   Res,
   NotFoundException,
   UseGuards,
+  UseInterceptors,
   Sse,
   MessageEvent,
+  Headers,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   Observable,
@@ -43,6 +46,10 @@ import { IpWhitelistGuard } from '../security/guards/ip-whitelist.guard';
 import { SecurityService } from '../security/security.service';
 import { SecurityEvents } from '../security/constants/security-events.constants';
 import { RateLimit, RateLimits } from '../rate-limit/rate-limit.decorator';
+import { IdempotencyInterceptor, IDEMPOTENCY_KEY_HEADER } from './idempotency/idempotency.interceptor';
+import { IdempotencyKeyService } from './idempotency/idempotency-key.service';
+import { IdempotencyKeyValidator } from './idempotency/idempotency-key.validator';
+import { RetirementService } from './retirement.service';
 
 /** How often (ms) the SSE feed polls for new retirements */
 const SSE_POLL_INTERVAL_MS = 5_000;
@@ -57,23 +64,93 @@ export class RetirementController {
     private certificateService: CertificateService,
     private prisma: PrismaService,
     private securityService: SecurityService,
+    private idempotencyKeyService: IdempotencyKeyService,
+    private retirementService: RetirementService,
   ) {}
 
   /**
    * Retire carbon credits
    * Rate limited to 3 retirements per minute per user
    * Rate limited to 10 retirements per minute per company
+   * Idempotency supported via Idempotency-Key header
    */
   @Post()
   @Permissions(CREDIT_RETIRE)
   @RateLimit(RateLimits.RETIREMENT)
   @RateLimit(RateLimits.COMPANY_RETIREMENT)
+  @UseInterceptors(IdempotencyInterceptor)
   async retireCredits(
     @CurrentUser() user: JwtPayload,
     @Body() dto: RetireCreditsDto,
+    @Headers(IDEMPOTENCY_KEY_HEADER.toLowerCase()) idempotencyKey?: string,
   ) {
     const companyId = user.companyId;
     const userId = user.sub;
+
+    // If idempotency key is provided, use idempotency-aware processing
+    if (idempotencyKey) {
+      const normalizedKey = IdempotencyKeyValidator.normalize(idempotencyKey);
+      
+      // Process with idempotency
+      const result = await this.idempotencyKeyService.processIdempotencyKey(
+        normalizedKey,
+        companyId,
+        userId,
+        async () => {
+          // This is the actual retirement logic
+          const retirementResult = await this.instantRetirementService.retire(
+            companyId,
+            userId,
+            dto,
+          );
+
+          // Log the event
+          await this.securityService.logEvent({
+            eventType: SecurityEvents.CreditRetired,
+            companyId,
+            userId,
+            resource: '/api/v1/retirements',
+            method: 'POST',
+            status: 'success',
+            statusCode: 201,
+            details: {
+              amount: dto.amount,
+              creditId: dto.creditId,
+              idempotencyKey: normalizedKey,
+            },
+          });
+
+          return retirementResult;
+        },
+        {
+          creditId: dto.creditId,
+          amount: dto.amount,
+          purpose: dto.purpose,
+        },
+      );
+
+      // If it's a replay, log it
+      if (result.isReplay) {
+        await this.securityService.logEvent({
+          eventType: SecurityEvents.IdempotentRequest,
+          companyId,
+          userId,
+          resource: '/api/v1/retirements',
+          method: 'POST',
+          status: 'success',
+          statusCode: 200,
+          details: {
+            idempotencyKey: normalizedKey,
+            isReplay: true,
+            callId: result.callId,
+          },
+        });
+      }
+
+      return result;
+    }
+
+    // No idempotency key provided - process normally
     const result = await this.instantRetirementService.retire(
       companyId,
       userId,
