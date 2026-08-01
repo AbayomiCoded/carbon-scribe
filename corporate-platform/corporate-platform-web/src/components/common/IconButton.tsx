@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, forwardRef } from 'react'
 
 interface IconButtonProps {
   children: ReactNode
@@ -16,7 +16,7 @@ interface IconButtonProps {
   'aria-pressed'?: boolean
 }
 
-export function IconButton({
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({
   children,
   label,
   onClick,
@@ -28,9 +28,10 @@ export function IconButton({
   'aria-haspopup': ariaHaspopup,
   'aria-describedby': ariaDescribedby,
   'aria-pressed': ariaPressed,
-}: IconButtonProps) {
+}, ref) {
   return (
     <button
+      ref={ref}
       type={type}
       onClick={onClick}
       className={className}
@@ -45,4 +46,4 @@ export function IconButton({
       {children}
     </button>
   )
-}
+})

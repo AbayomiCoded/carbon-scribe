@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react'
-import { useTranslation } from 'next-i18next'
 
 interface AccessibilityLabels {
   toggleSidebar: string
@@ -16,21 +15,19 @@ interface AccessibilityLabels {
 }
 
 export function useAccessibility() {
-  const { t } = useTranslation('common')
-
   const labels = useMemo<AccessibilityLabels>(() => ({
-    toggleSidebar: t('accessibility.toggleSidebar', 'Toggle sidebar'),
-    toggleTheme: t('accessibility.toggleTheme', 'Toggle theme'),
-    openCart: t('accessibility.openCart', 'Open cart ({count} items)'),
-    viewNotifications: t('accessibility.viewNotifications', 'View notifications'),
-    openSettings: t('accessibility.openSettings', 'Open settings'),
-    toggleNavigation: t('accessibility.toggleNavigation', 'Toggle navigation menu'),
-    searchCredits: t('accessibility.searchCredits', 'Search credits, projects, or analytics...'),
-    logout: t('accessibility.logout', 'Logout'),
-    backToCart: t('accessibility.backToCart', 'Back to cart'),
-    removeItem: t('accessibility.removeItem', 'Remove {itemName}'),
-    closeCart: t('accessibility.closeCart', 'Close cart'),
-  }), [t])
+    toggleSidebar: 'Toggle sidebar',
+    toggleTheme: 'Toggle theme',
+    openCart: 'Open cart ({count} items)',
+    viewNotifications: 'View notifications',
+    openSettings: 'Open settings',
+    toggleNavigation: 'Toggle navigation menu',
+    searchCredits: 'Search credits, projects, or analytics...',
+    logout: 'Logout',
+    backToCart: 'Back to cart',
+    removeItem: 'Remove {itemName}',
+    closeCart: 'Close cart',
+  }), [])
 
   const getCartLabel = useCallback((count: number): string => {
     return labels.openCart.replace('{count}', count.toString())

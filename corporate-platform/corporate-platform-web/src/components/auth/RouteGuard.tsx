@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useConnectivity } from '@/contexts/ConnectivityContext';
 import AccessDenied from '@/components/auth/AccessDenied';
 import { useAnnouncement } from '@/hooks/useAnnouncement';
+import type { AuthRole, AuthPermission } from '@/types/auth.types';
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
@@ -15,8 +16,8 @@ function isPublicRoute(path: string): boolean {
 
 interface RouteGuardProps {
   children: ReactNode;
-  requiredRoles?: string[];
-  requiredPermissions?: string[];
+  requiredRoles?: AuthRole[];
+  requiredPermissions?: AuthPermission[];
 }
 
 export default function RouteGuard({ 
@@ -34,7 +35,7 @@ export default function RouteGuard({
     hasPermission,
     user 
   } = useAuth();
-  const { isOnline } = useConnectivity();
+  const { state: { isOnline } } = useConnectivity();
   const { announce } = useAnnouncement();
   const [redirectAttempted, setRedirectAttempted] = useState(false);
 
