@@ -4,7 +4,6 @@ import { RedisService } from '../cache/redis.service';
 import { KafkaService } from '../event-bus/kafka.service';
 import { IpfsConfig } from '../ipfs/ipfs.config';
 import { SorobanService } from '../stellar/soroban/soroban.service';
-import { ConfigService } from '../config/config.service';
 import axios from 'axios';
 
 export interface HealthCheckDetail {
@@ -39,7 +38,6 @@ export class HealthService {
     private readonly kafkaService: KafkaService,
     private readonly ipfsConfig: IpfsConfig,
     private readonly sorobanService: SorobanService,
-    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -210,15 +208,16 @@ export class HealthService {
       ipfsResult.status === 'healthy' &&
       stellarResult.status === 'healthy';
 
-    const isDegraded =
-      !isHealthy &&
-      (dbResult.status === 'healthy' ||
-        redisResult.status === 'healthy' ||
-        (kafkaResult.status === 'healthy' || kafkaResult.status === 'disabled') ||
-        ipfsResult.status === 'healthy' ||
-        stellarResult.status === 'healthy');
+    // The database is a hard dependency: if it's down, the service is unhealthy
+    // regardless of the other (soft) dependencies. Degraded only applies when the
+    // database is reachable but at least one other dependency is not.
+    const isDegraded = !isHealthy && dbResult.status === 'healthy';
 
-    const status = isHealthy ? 'healthy' : isDegraded ? 'degraded' : 'unhealthy';
+    const status = isHealthy
+      ? 'healthy'
+      : isDegraded
+        ? 'degraded'
+        : 'unhealthy';
 
     return {
       status,

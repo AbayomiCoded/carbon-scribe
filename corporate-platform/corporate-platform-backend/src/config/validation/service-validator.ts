@@ -36,7 +36,7 @@ export class ServiceValidator {
       await Promise.race([
         this.prismaService.$queryRaw`SELECT 1`,
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Database check timed out')), 5000)
+          setTimeout(() => reject(new Error('Database check timed out')), 5000),
         ),
       ]);
 
@@ -83,7 +83,7 @@ export class ServiceValidator {
       await Promise.race([
         client.ping(),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Redis ping timed out')), 5000)
+          setTimeout(() => reject(new Error('Redis ping timed out')), 5000),
         ),
       ]);
 
@@ -131,7 +131,10 @@ export class ServiceValidator {
       await Promise.race([
         admin.fetchTopicMetadata({ topics: [] }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Kafka metadata fetch timed out')), 5000)
+          setTimeout(
+            () => reject(new Error('Kafka metadata fetch timed out')),
+            5000,
+          ),
         ),
       ]);
 
@@ -178,7 +181,10 @@ export class ServiceValidator {
       await Promise.race([
         rpcClient.getLatestLedger(),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Stellar RPC request timed out')), 5000)
+          setTimeout(
+            () => reject(new Error('Stellar RPC request timed out')),
+            5000,
+          ),
         ),
       ]);
 
@@ -223,7 +229,10 @@ export class ServiceValidator {
           timeout: 5000,
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('IPFS connectivity check timed out')), 5000)
+          setTimeout(
+            () => reject(new Error('IPFS connectivity check timed out')),
+            5000,
+          ),
         ),
       ]);
 
@@ -257,7 +266,7 @@ export class ServiceValidator {
    * Runs all service connectivity checks
    */
   async validateAllServices(
-    checks: Array<'database' | 'redis' | 'kafka' | 'stellar' | 'ipfs'>
+    checks: Array<'database' | 'redis' | 'kafka' | 'stellar' | 'ipfs'>,
   ): Promise<ServiceConnectivityResult[]> {
     const results: ServiceConnectivityResult[] = [];
     const checkMap: Record<string, () => Promise<ServiceConnectivityResult>> = {

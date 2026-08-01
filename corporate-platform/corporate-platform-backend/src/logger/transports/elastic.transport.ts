@@ -38,19 +38,28 @@ export class ElasticTransport implements LogTransport {
 
   constructor(config?: ElasticTransportConfig) {
     this.enabled = config?.enabled ?? process.env.ELASTIC_ENABLED === 'true';
-    this.url = config?.url ?? process.env.ELASTIC_URL ?? 'http://localhost:9200';
-    this.index = config?.index ?? process.env.ELASTIC_INDEX ?? 'carbonscribe-logs';
+    this.url =
+      config?.url ?? process.env.ELASTIC_URL ?? 'http://localhost:9200';
+    this.index =
+      config?.index ?? process.env.ELASTIC_INDEX ?? 'carbonscribe-logs';
     this.username = config?.username ?? process.env.ELASTIC_USERNAME;
     this.password = config?.password ?? process.env.ELASTIC_PASSWORD;
-    this.timeout = config?.timeout ?? parseInt(process.env.ELASTIC_TIMEOUT_MS ?? '5000', 10);
-    this.maxRetries = config?.maxRetries ?? parseInt(process.env.ELASTIC_MAX_RETRIES ?? '3', 10);
-    this.retryDelay = config?.retryDelay ?? parseInt(process.env.ELASTIC_RETRY_DELAY_MS ?? '1000', 10);
+    this.timeout =
+      config?.timeout ?? parseInt(process.env.ELASTIC_TIMEOUT_MS ?? '5000', 10);
+    this.maxRetries =
+      config?.maxRetries ??
+      parseInt(process.env.ELASTIC_MAX_RETRIES ?? '3', 10);
+    this.retryDelay =
+      config?.retryDelay ??
+      parseInt(process.env.ELASTIC_RETRY_DELAY_MS ?? '1000', 10);
     this.sslConfig = config?.ssl;
 
     // Log configuration on initialization (but not in production to avoid noise)
     if (process.env.NODE_ENV !== 'production') {
       // eslint-disable-next-line no-console
-      console.log(`ElasticTransport initialized: ${this.url} (enabled: ${this.enabled})`);
+      console.log(
+        `ElasticTransport initialized: ${this.url} (enabled: ${this.enabled})`,
+      );
     }
   }
 
@@ -60,11 +69,14 @@ export class ElasticTransport implements LogTransport {
     }
 
     // Skip if we recently failed to reduce load
-    if (this.lastError && (Date.now() - this.lastError.getTime()) < 60000) {
+    if (this.lastError && Date.now() - this.lastError.getTime() < 60000) {
       // Fallback to console for critical logs
       if (entry.level === 'error' || entry.level === 'fatal') {
         // eslint-disable-next-line no-console
-        console.warn('Elasticsearch unavailable, logging to console:', entry.message);
+        console.warn(
+          'Elasticsearch unavailable, logging to console:',
+          entry.message,
+        );
       }
       return;
     }
@@ -94,7 +106,10 @@ export class ElasticTransport implements LogTransport {
       // Still try to log critical errors to console
       if (entry.level === 'error' || entry.level === 'fatal') {
         // eslint-disable-next-line no-console
-        console.error('Critical log that failed to reach Elasticsearch:', entry);
+        console.error(
+          'Critical log that failed to reach Elasticsearch:',
+          entry,
+        );
       }
     }
   }
@@ -102,7 +117,10 @@ export class ElasticTransport implements LogTransport {
   /**
    * Sends a log entry to Elasticsearch with retry logic
    */
-  private async sendWithRetry(index: string, data: Record<string, any>): Promise<void> {
+  private async sendWithRetry(
+    index: string,
+    data: Record<string, any>,
+  ): Promise<void> {
     let lastError: Error | undefined;
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
@@ -142,7 +160,9 @@ export class ElasticTransport implements LogTransport {
 
     // Add authentication if configured
     if (this.username && this.password) {
-      const auth = Buffer.from(`${this.username}:${this.password}`).toString('base64');
+      const auth = Buffer.from(`${this.username}:${this.password}`).toString(
+        'base64',
+      );
       headers['Authorization'] = `Basic ${auth}`;
     }
 
@@ -211,7 +231,7 @@ export class ElasticTransport implements LogTransport {
       });
       this.isHealthy = true;
       return true;
-    } catch (error) {
+    } catch {
       this.isHealthy = false;
       return false;
     }

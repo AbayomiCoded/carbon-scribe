@@ -10,7 +10,7 @@ export interface KafkaTransportConfig {
   brokers?: string[];
   ssl?: boolean;
   sasl?: {
-    mechanism: string;
+    mechanism: 'plain' | 'scram-sha-256' | 'scram-sha-512';
     username: string;
     password: string;
   };
@@ -36,7 +36,7 @@ export class KafkaTransport implements LogTransport {
   private readonly brokers: string[];
   private readonly ssl: boolean;
   private readonly sasl?: {
-    mechanism: string;
+    mechanism: 'plain' | 'scram-sha-256' | 'scram-sha-512';
     username: string;
     password: string;
   };
@@ -61,22 +61,33 @@ export class KafkaTransport implements LogTransport {
     // Handle both config types
     const cfg = config as KafkaTransportConfig;
     this.enabled = cfg.enabled ?? process.env.KAFKA_LOG_ENABLED === 'true';
-    this.topic = cfg.topic ?? process.env.KAFKA_LOG_TOPIC ?? 'carbonscribe-logs';
-    this.clientId = cfg.clientId ?? process.env.KAFKA_CLIENT_ID ?? 'carbonscribe-logger';
-    this.brokers = cfg.brokers ?? (process.env.KAFKA_BROKERS || '').split(',').filter(Boolean);
+    this.topic =
+      cfg.topic ?? process.env.KAFKA_LOG_TOPIC ?? 'carbonscribe-logs';
+    this.clientId =
+      cfg.clientId ?? process.env.KAFKA_CLIENT_ID ?? 'carbonscribe-logger';
+    this.brokers =
+      cfg.brokers ??
+      (process.env.KAFKA_BROKERS || '').split(',').filter(Boolean);
     this.ssl = cfg.ssl ?? false;
     this.sasl = cfg.sasl;
     this.retryConfig = cfg.retry;
     this.compression = cfg.compression ?? 'none';
     this.acks = cfg.acks ?? 1;
-    this.maxRetries = cfg.maxRetries ?? parseInt(process.env.KAFKA_LOG_MAX_RETRIES ?? '3', 10);
-    this.retryDelay = cfg.retryDelay ?? parseInt(process.env.KAFKA_LOG_RETRY_DELAY_MS ?? '1000', 10);
-    this.reconnectInterval = cfg.reconnectInterval ?? parseInt(process.env.KAFKA_RECONNECT_INTERVAL_MS ?? '30000', 10);
+    this.maxRetries =
+      cfg.maxRetries ?? parseInt(process.env.KAFKA_LOG_MAX_RETRIES ?? '3', 10);
+    this.retryDelay =
+      cfg.retryDelay ??
+      parseInt(process.env.KAFKA_LOG_RETRY_DELAY_MS ?? '1000', 10);
+    this.reconnectInterval =
+      cfg.reconnectInterval ??
+      parseInt(process.env.KAFKA_RECONNECT_INTERVAL_MS ?? '30000', 10);
 
     // Log configuration on initialization (but not in production to avoid noise)
     if (process.env.NODE_ENV !== 'production') {
       // eslint-disable-next-line no-console
-      console.log(`KafkaTransport initialized: ${this.brokers.join(', ')} (enabled: ${this.enabled})`);
+      console.log(
+        `KafkaTransport initialized: ${this.brokers.join(', ')} (enabled: ${this.enabled})`,
+      );
     }
 
     // Start health check interval
@@ -91,7 +102,7 @@ export class KafkaTransport implements LogTransport {
     }
 
     // Skip if we recently failed to reduce load
-    if (this.lastError && (Date.now() - this.lastError.getTime()) < 60000) {
+    if (this.lastError && Date.now() - this.lastError.getTime() < 60000) {
       // Fallback to console for critical logs
       if (entry.level === 'error' || entry.level === 'fatal') {
         // eslint-disable-next-line no-console
@@ -158,7 +169,9 @@ export class KafkaTransport implements LogTransport {
                 ...(entry.traceId ? { 'x-trace-id': entry.traceId } : {}),
                 ...(entry.userId ? { 'x-user-id': entry.userId } : {}),
                 ...(entry.companyId ? { 'x-company-id': entry.companyId } : {}),
-                ...(entry.workflowStage ? { 'x-workflow-stage': entry.workflowStage } : {}),
+                ...(entry.workflowStage
+                  ? { 'x-workflow-stage': entry.workflowStage }
+                  : {}),
               },
             },
           ],
@@ -198,13 +211,13 @@ export class KafkaTransport implements LogTransport {
     this.isConnecting = true;
 
     try {
-      const { Kafka, CompressionTypes } = await import('kafkajs');
+      const { Kafka } = await import('kafkajs');
 
       const kafka = new Kafka({
         clientId: this.clientId,
         brokers: this.brokers,
         ssl: this.ssl,
-        sasl: this.sasl,
+        sasl: this.sasl as any,
         retry: {
           initialRetryTime: this.retryConfig?.initialRetryTime || 300,
           retries: this.retryConfig?.retries || 5,
@@ -224,7 +237,7 @@ export class KafkaTransport implements LogTransport {
       await Promise.race([
         this.producer.connect(),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Kafka connection timeout')), 5000)
+          setTimeout(() => reject(new Error('Kafka connection timeout')), 5000),
         ),
       ]);
 
@@ -304,7 +317,7 @@ export class KafkaTransport implements LogTransport {
           if (admin) {
             await admin.listTopics();
           }
-        } catch (error) {
+        } catch {
           this.isConnected = false;
           this.scheduleReconnect();
         }
@@ -379,7 +392,7 @@ export class KafkaTransport implements LogTransport {
         await this.connect();
       }
       return this.isConnected;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -407,21 +420,39 @@ export class KafkaTransport implements LogTransport {
 /**
  * Factory function for creating KafkaTransport with environment-based configuration
  */
-export function createKafkaTransport(config?: Partial<KafkaTransportConfig>): KafkaTransport {
+export function createKafkaTransport(
+  config?: Partial<KafkaTransportConfig>,
+): KafkaTransport {
   return new KafkaTransport({
     enabled: config?.enabled ?? process.env.KAFKA_LOG_ENABLED === 'true',
     topic: config?.topic ?? process.env.KAFKA_LOG_TOPIC ?? 'carbonscribe-logs',
-    clientId: config?.clientId ?? process.env.KAFKA_CLIENT_ID ?? 'carbonscribe-logger',
-    brokers: config?.brokers ?? (process.env.KAFKA_BROKERS || '').split(',').filter(Boolean),
+    clientId:
+      config?.clientId ?? process.env.KAFKA_CLIENT_ID ?? 'carbonscribe-logger',
+    brokers:
+      config?.brokers ??
+      (process.env.KAFKA_BROKERS || '').split(',').filter(Boolean),
     ssl: config?.ssl ?? process.env.KAFKA_SSL_ENABLED === 'true',
-    sasl: config?.sasl ?? (process.env.KAFKA_SASL_MECHANISM && process.env.KAFKA_SASL_USERNAME ? {
-      mechanism: process.env.KAFKA_SASL_MECHANISM,
-      username: process.env.KAFKA_SASL_USERNAME,
-      password: process.env.KAFKA_SASL_PASSWORD,
-    } : undefined),
-    maxRetries: config?.maxRetries ?? parseInt(process.env.KAFKA_LOG_MAX_RETRIES ?? '3', 10),
-    retryDelay: config?.retryDelay ?? parseInt(process.env.KAFKA_LOG_RETRY_DELAY_MS ?? '1000', 10),
-    reconnectInterval: config?.reconnectInterval ?? parseInt(process.env.KAFKA_RECONNECT_INTERVAL_MS ?? '30000', 10),
+    sasl:
+      config?.sasl ??
+      (process.env.KAFKA_SASL_MECHANISM && process.env.KAFKA_SASL_USERNAME
+        ? {
+            mechanism: process.env.KAFKA_SASL_MECHANISM as
+              | 'plain'
+              | 'scram-sha-256'
+              | 'scram-sha-512',
+            username: process.env.KAFKA_SASL_USERNAME,
+            password: process.env.KAFKA_SASL_PASSWORD,
+          }
+        : undefined),
+    maxRetries:
+      config?.maxRetries ??
+      parseInt(process.env.KAFKA_LOG_MAX_RETRIES ?? '3', 10),
+    retryDelay:
+      config?.retryDelay ??
+      parseInt(process.env.KAFKA_LOG_RETRY_DELAY_MS ?? '1000', 10),
+    reconnectInterval:
+      config?.reconnectInterval ??
+      parseInt(process.env.KAFKA_RECONNECT_INTERVAL_MS ?? '30000', 10),
     ...config,
   });
 }

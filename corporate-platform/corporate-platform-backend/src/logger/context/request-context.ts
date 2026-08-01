@@ -82,10 +82,9 @@ export class RequestContext {
     }
   }
 
-  static addDomainField<K extends keyof NonNullable<RequestContextData['domainFields']>>(
-    key: K,
-    value: string
-  ): void {
+  static addDomainField<
+    K extends keyof NonNullable<RequestContextData['domainFields']>,
+  >(key: K, value: string): void {
     const context = this.get();
     if (context) {
       if (!context.domainFields) {

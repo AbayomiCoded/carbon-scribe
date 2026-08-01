@@ -23,10 +23,7 @@ import { ConfigModule } from '../config/config.module';
     // to avoid double-logging. Use @UseInterceptors(LoggingInterceptor) on controllers.
     RequestLoggerMiddleware,
   ],
-  exports: [
-    LoggerService,
-    RequestLoggerMiddleware,
-  ],
+  exports: [LoggerService, RequestLoggerMiddleware],
 })
 export class LoggerModule implements NestModule {
   /**
@@ -34,8 +31,6 @@ export class LoggerModule implements NestModule {
    * RequestLoggerMiddleware runs at the HTTP layer before any interceptors
    */
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RequestLoggerMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
   }
 }

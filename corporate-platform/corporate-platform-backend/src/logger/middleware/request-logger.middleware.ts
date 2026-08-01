@@ -12,7 +12,8 @@ export class RequestLoggerMiddleware implements NestMiddleware {
 
   constructor(private readonly logger: LoggerService) {
     this.isDevelopment = process.env.NODE_ENV === 'development';
-    this.enableBodyLogging = process.env.LOG_BODIES === 'true' || this.isDevelopment;
+    this.enableBodyLogging =
+      process.env.LOG_BODIES === 'true' || this.isDevelopment;
   }
 
   use(req: Request, res: Response, next: NextFunction) {
@@ -26,7 +27,10 @@ export class RequestLoggerMiddleware implements NestMiddleware {
 
     // Extract trace ID from W3C Trace Context header
     const traceParent = req.headers['traceparent'] as string;
-    const traceId = traceParent?.split('-')[1] || req.headers['x-trace-id'] as string || randomUUID();
+    const traceId =
+      traceParent?.split('-')[1] ||
+      (req.headers['x-trace-id'] as string) ||
+      randomUUID();
 
     // Set request context
     const context = RequestContext.get();
@@ -62,7 +66,10 @@ export class RequestLoggerMiddleware implements NestMiddleware {
         responseBody = SensitiveDataSanitizer.sanitize(body);
       }
       return originalJson.call(this, body);
-    }.bind({ isDevelopment: this.isDevelopment, enableBodyLogging: this.enableBodyLogging });
+    }.bind({
+      isDevelopment: this.isDevelopment,
+      enableBodyLogging: this.enableBodyLogging,
+    });
 
     res.on('finish', () => {
       const duration = Date.now() - start;

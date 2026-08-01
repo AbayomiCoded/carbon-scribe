@@ -42,7 +42,7 @@ export class PlaceholderDetector {
 
     // Check against placeholder patterns
     const hasPlaceholderPattern = this.patterns.some((pattern) =>
-      pattern.test(trimmedValue)
+      pattern.test(trimmedValue),
     );
 
     if (hasPlaceholderPattern) {
@@ -56,7 +56,9 @@ export class PlaceholderDetector {
 
     // Check for required special characters
     if (config?.requiredSpecialChars) {
-      const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};:'",.<>?/\\|`~]/.test(trimmedValue);
+      const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};:'",.<>?/\\|`~]/.test(
+        trimmedValue,
+      );
       if (!hasSpecialChar) {
         return true;
       }
@@ -73,7 +75,7 @@ export class PlaceholderDetector {
     ];
 
     const hasWeakPattern = weakPatterns.some((pattern) =>
-      pattern.test(trimmedValue)
+      pattern.test(trimmedValue),
     );
 
     return hasWeakPattern;
@@ -82,7 +84,11 @@ export class PlaceholderDetector {
   /**
    * Validates a value against placeholder detection rules
    */
-  validateValue(value: string, name: string, config?: PlaceholderCheckConfig): {
+  validateValue(
+    value: string,
+    name: string,
+    config?: PlaceholderCheckConfig,
+  ): {
     isValid: boolean;
     message?: string;
   } {
@@ -108,7 +114,7 @@ export class PlaceholderDetector {
    */
   validateValues(
     values: Record<string, string>,
-    configs?: Record<string, PlaceholderCheckConfig>
+    configs?: Record<string, PlaceholderCheckConfig>,
   ): Record<string, { isValid: boolean; message?: string }> {
     const results: Record<string, { isValid: boolean; message?: string }> = {};
 

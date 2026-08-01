@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '../config/config.service';
-import { LogEntry } from './interfaces/log-entry.interface';
 import { ExtendedLogEntry } from './interfaces/extended-log-entry.interface';
 import { LogTransport } from './interfaces/transport.interface';
 import {
@@ -14,7 +13,6 @@ import { KafkaTransport } from './transports/kafka.transport';
 import { RequestContext } from './context/request-context';
 import { SensitiveDataSanitizer } from './sanitizer/sensitive-data-sanitizer';
 import { LogSampler } from './sampling/log-sampler';
-import { formatStructured } from './formatters/structured.formatter';
 
 const levelPriority: Record<LogLevel, number> = {
   debug: 10,
@@ -39,7 +37,8 @@ export class LoggerService {
     this.serviceName = appConfig.serviceName;
     this.environment = appConfig.nodeEnv;
     this.isDevelopment = this.environment === 'development';
-    this.enableBodyLogging = process.env.LOG_BODIES === 'true' || this.isDevelopment;
+    this.enableBodyLogging =
+      process.env.LOG_BODIES === 'true' || this.isDevelopment;
 
     if (this.config.enableConsole) {
       this.transports.push(new ConsoleTransport(this.config.format));
@@ -83,7 +82,7 @@ export class LoggerService {
     stage: string,
     step: number,
     message: string,
-    metadata?: Partial<ExtendedLogEntry>
+    metadata?: Partial<ExtendedLogEntry>,
   ) {
     this.info(message, {
       ...metadata,
@@ -99,7 +98,7 @@ export class LoggerService {
     level: LogLevel,
     message: string,
     domainFields: Record<string, string>,
-    metadata?: Partial<ExtendedLogEntry>
+    metadata?: Partial<ExtendedLogEntry>,
   ) {
     this.logInternal(level, message, {
       ...metadata,
@@ -172,7 +171,10 @@ export class LoggerService {
     } as ExtendedLogEntry;
 
     // Sanitize sensitive data
-    const shouldSanitize = SensitiveDataSanitizer.shouldSanitize(level, this.environment);
+    const shouldSanitize = SensitiveDataSanitizer.shouldSanitize(
+      level,
+      this.environment,
+    );
     if (shouldSanitize) {
       entry.message = SensitiveDataSanitizer.sanitize(entry.message);
       if (entry.error) {
@@ -191,9 +193,6 @@ export class LoggerService {
       delete entry.requestBody;
       delete entry.responseBody;
     }
-
-    // Format as structured JSON
-    const formatted = formatStructured(entry);
 
     // Send to all transports
     for (const transport of this.transports) {

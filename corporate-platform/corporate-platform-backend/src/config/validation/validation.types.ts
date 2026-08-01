@@ -19,7 +19,7 @@ export interface StartupValidationResult {
 }
 
 export interface PlaceholderCheckConfig {
-  placeholderPatterns: RegExp[];
+  placeholderPatterns?: RegExp[];
   minLength?: number;
   requiredSpecialChars?: boolean;
 }

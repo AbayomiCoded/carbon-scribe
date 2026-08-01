@@ -6,9 +6,16 @@ import { ServiceValidator } from './service-validator';
 describe('StartupValidator', () => {
   let startupValidator: StartupValidator;
   let configService: ConfigService;
-  let serviceValidator: ServiceValidator;
+
+  const originalEnv = { ...process.env };
 
   beforeEach(async () => {
+    // Pinata/IPFS credentials are read directly from process.env (not ConfigService),
+    // so they must be set here for the "all checks pass" scenario to be deterministic.
+    process.env.PINATA_API_KEY = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6';
+    process.env.PINATA_SECRET_KEY = 'z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4';
+    process.env.PINATA_JWT = 'eyJhbGciOiJIUzI1NiJ9.mock-payload.mock-signature';
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StartupValidator,
@@ -59,7 +66,10 @@ describe('StartupValidator', () => {
 
     startupValidator = module.get<StartupValidator>(StartupValidator);
     configService = module.get<ConfigService>(ConfigService);
-    serviceValidator = module.get<ServiceValidator>(ServiceValidator);
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
   });
 
   it('should be defined', () => {

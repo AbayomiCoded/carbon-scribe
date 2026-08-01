@@ -14,7 +14,8 @@ export class SensitiveDataSanitizer {
     { pattern: /stellar[_-]?secret/gi, replacement: '[REDACTED]' },
   ];
 
-  private static readonly EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  private static readonly EMAIL_PATTERN =
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
   /**
    * Sanitizes sensitive data from a string or object
@@ -47,12 +48,15 @@ export class SensitiveDataSanitizer {
     return result;
   }
 
-  private static sanitizeObject(obj: Record<string, any>, redactEmail: boolean): Record<string, any> {
+  private static sanitizeObject(
+    obj: Record<string, any>,
+    redactEmail: boolean,
+  ): Record<string, any> {
     const result: Record<string, any> = {};
 
     for (const [key, value] of Object.entries(obj)) {
       const isSensitiveKey = this.SENSITIVE_PATTERNS.some(({ pattern }) =>
-        pattern.test(key)
+        pattern.test(key),
       );
 
       if (isSensitiveKey && typeof value === 'string') {
@@ -77,6 +81,8 @@ export class SensitiveDataSanitizer {
    */
   static shouldSanitize(level: string, environment: string): boolean {
     // Always sanitize error logs and production logs
-    return level === 'error' || level === 'fatal' || environment === 'production';
+    return (
+      level === 'error' || level === 'fatal' || environment === 'production'
+    );
   }
 }

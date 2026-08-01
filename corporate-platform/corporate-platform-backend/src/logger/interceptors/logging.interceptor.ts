@@ -7,7 +7,6 @@ import {
 import { Observable } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { LoggerService } from '../logger.service';
-import { RequestContext } from '../context/request-context';
 import { SensitiveDataSanitizer } from '../sanitizer/sensitive-data-sanitizer';
 
 @Injectable()
@@ -26,8 +25,6 @@ export class LoggingInterceptor implements NestInterceptor {
     const path = request?.url;
     const requestId = (request as any)?.requestId;
 
-    // Get context data
-    const ctx = RequestContext.get();
     const handlerName = context.getHandler().name;
     const className = context.getClass().name;
 
@@ -70,7 +67,8 @@ export class LoggingInterceptor implements NestInterceptor {
 
         // Enrich error with context
         const errorCode = err.code || err.status || 'INTERNAL_ERROR';
-        const causedBy = err.causedBy || err.cause?.message || err.stack?.split('\n')[0];
+        const causedBy =
+          err.causedBy || err.cause?.message || err.stack?.split('\n')[0];
 
         this.logger.error('Handler threw error', {
           requestId,

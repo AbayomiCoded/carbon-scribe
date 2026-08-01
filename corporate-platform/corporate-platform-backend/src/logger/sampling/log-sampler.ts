@@ -1,5 +1,5 @@
 export class LogSampler {
-  private static readonly SAMPLE_RATE = process.env.LOG_SAMPLE_RATE
+  private static SAMPLE_RATE = process.env.LOG_SAMPLE_RATE
     ? parseFloat(process.env.LOG_SAMPLE_RATE)
     : 0.1; // 10% default
 
@@ -29,6 +29,6 @@ export class LogSampler {
    * Sets the sample rate (useful for testing)
    */
   static setSampleRate(rate: number): void {
-    // Used for testing purposes
+    this.SAMPLE_RATE = rate;
   }
 }

@@ -23,12 +23,6 @@ export function LogWorkflow(step: WorkflowStep): MethodDecorator {
       // Set workflow context
       RequestContext.setWorkflowStage(step.stage, step.step);
 
-      // Add domain fields if provided
-      if (step.name) {
-        const domainFields = RequestContext.getDomainFields();
-        // You could add custom domain field extraction logic here
-      }
-
       // Log workflow step start
       const logger = (this as any).logger;
       if (logger) {

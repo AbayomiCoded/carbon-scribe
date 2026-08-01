@@ -1,6 +1,5 @@
 import { LogTransport } from '../interfaces/transport.interface';
 import { LogEntry } from '../interfaces/log-entry.interface';
-import { formatJson } from '../formatters/json.formatter';
 import { LogFormat } from '../../config/interfaces/logging-config.interface';
 import { formatStructured } from '../formatters/structured.formatter';
 

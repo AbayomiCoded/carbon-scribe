@@ -1,8 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from './config.service';
-import { PlaceholderDetector } from './validation/placeholder-detector';
-import { ServiceValidator } from './validation/service-validator';
-import { StartupValidationResult, ServiceConnectivityResult } from './validation/validation.types';
+import { ConfigService } from '../config.service';
+import { PlaceholderDetector } from './placeholder-detector';
+import { ServiceValidator } from './service-validator';
+import {
+  StartupValidationResult,
+  ServiceConnectivityResult,
+} from './validation.types';
 
 @Injectable()
 export class StartupValidator implements OnModuleInit {
@@ -24,39 +27,54 @@ export class StartupValidator implements OnModuleInit {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    const isProduction = this.configService.getAppConfig().nodeEnv === 'production';
-    const isDevelopment = this.configService.getAppConfig().nodeEnv === 'development';
+    const isProduction =
+      this.configService.getAppConfig().nodeEnv === 'production';
 
-    this.logger.log(`🔍 Running startup validation in ${isProduction ? 'production' : 'development'} mode`);
+    this.logger.log(
+      `🔍 Running startup validation in ${isProduction ? 'production' : 'development'} mode`,
+    );
 
     // 1. Validate configuration
     this.validateConfiguration(errors, warnings);
 
     // 2. Validate service connectivity (only in production or when explicitly enabled)
-    const connectivityChecks: Array<'database' | 'redis' | 'kafka' | 'stellar' | 'ipfs'> = [];
-    
+    const connectivityChecks: Array<
+      'database' | 'redis' | 'kafka' | 'stellar' | 'ipfs'
+    > = [];
+
     if (isProduction) {
       connectivityChecks.push('database', 'redis', 'kafka', 'stellar', 'ipfs');
     } else if (process.env.STARTUP_VALIDATE_SERVICES === 'true') {
       connectivityChecks.push('database', 'redis', 'kafka', 'stellar', 'ipfs');
     } else {
-      this.logger.log('⏭️ Skipping service connectivity checks in development (set STARTUP_VALIDATE_SERVICES=true to enable)');
+      this.logger.log(
+        '⏭️ Skipping service connectivity checks in development (set STARTUP_VALIDATE_SERVICES=true to enable)',
+      );
     }
 
     let connectivityResults: ServiceConnectivityResult[] = [];
     if (connectivityChecks.length > 0) {
-      this.logger.log(`🔗 Validating service connectivity for: ${connectivityChecks.join(', ')}`);
-      connectivityResults = await this.serviceValidator.validateAllServices(connectivityChecks);
+      this.logger.log(
+        `🔗 Validating service connectivity for: ${connectivityChecks.join(', ')}`,
+      );
+      connectivityResults =
+        await this.serviceValidator.validateAllServices(connectivityChecks);
 
       for (const result of connectivityResults) {
         if (!result.connected) {
           if (isProduction) {
-            errors.push(`Service ${result.service} is not reachable: ${result.error || 'Unknown error'}`);
+            errors.push(
+              `Service ${result.service} is not reachable: ${result.error || 'Unknown error'}`,
+            );
           } else {
-            warnings.push(`Service ${result.service} is not reachable: ${result.error || 'Unknown error'}`);
+            warnings.push(
+              `Service ${result.service} is not reachable: ${result.error || 'Unknown error'}`,
+            );
           }
         } else {
-          this.logger.log(`✅ ${result.service} connected (${result.latencyMs}ms)`);
+          this.logger.log(
+            `✅ ${result.service} connected (${result.latencyMs}ms)`,
+          );
         }
       }
     }
@@ -66,7 +84,9 @@ export class StartupValidator implements OnModuleInit {
     if (valid) {
       this.logger.log('✅ All startup validations passed');
     } else {
-      this.logger.error(`❌ Startup validation failed with ${errors.length} errors`);
+      this.logger.error(
+        `❌ Startup validation failed with ${errors.length} errors`,
+      );
       for (const error of errors) {
         this.logger.error(`  - ${error}`);
       }
@@ -85,12 +105,6 @@ export class StartupValidator implements OnModuleInit {
       connectivity: connectivityResults,
     };
 
-    // Exit process if validation fails in production
-    if (isProduction && !valid) {
-      this.logger.error('❌ Production startup validation failed. Exiting process.');
-      process.exit(1);
-    }
-
     return result;
   }
 
@@ -98,8 +112,8 @@ export class StartupValidator implements OnModuleInit {
    * Validates configuration values
    */
   private validateConfiguration(errors: string[], warnings: string[]): void {
-    const isProduction = this.configService.getAppConfig().nodeEnv === 'production';
-    const appConfig = this.configService.getAppConfig();
+    const isProduction =
+      this.configService.getAppConfig().nodeEnv === 'production';
     const databaseConfig = this.configService.getDatabaseConfig();
     const redisConfig = this.configService.getRedisConfig();
     const kafkaConfig = this.configService.getKafkaConfig();
@@ -112,7 +126,10 @@ export class StartupValidator implements OnModuleInit {
     // === DATABASE ===
     if (!databaseConfig.url) {
       errors.push('DATABASE_URL is required');
-    } else if (isProduction && placeholderDetector.isPlaceholder(databaseConfig.url)) {
+    } else if (
+      isProduction &&
+      placeholderDetector.isPlaceholder(databaseConfig.url)
+    ) {
       errors.push('DATABASE_URL appears to be a placeholder value');
     }
 
@@ -123,7 +140,7 @@ export class StartupValidator implements OnModuleInit {
       const validation = placeholderDetector.validateValue(
         authConfig.jwtSecret,
         'JWT_SECRET',
-        { minLength: 32, requiredSpecialChars: true }
+        { minLength: 32, requiredSpecialChars: true },
       );
       if (!validation.isValid) {
         errors.push(`JWT_SECRET validation failed: ${validation.message}`);
@@ -136,7 +153,7 @@ export class StartupValidator implements OnModuleInit {
         errors.push('KAFKA_BROKERS must be configured in production');
       } else {
         const hasValidBroker = kafkaConfig.brokers.some(
-          (broker: string) => broker && broker.trim().length > 0
+          (broker: string) => broker && broker.trim().length > 0,
         );
         if (!hasValidBroker) {
           errors.push('KAFKA_BROKERS contains invalid or empty values');
@@ -165,7 +182,9 @@ export class StartupValidator implements OnModuleInit {
     // === STELLAR ===
     if (isProduction) {
       if (!stellarConfig.network || stellarConfig.network === 'testnet') {
-        errors.push('STELLAR_NETWORK must be configured to a production network (mainnet) in production');
+        errors.push(
+          'STELLAR_NETWORK must be configured to a production network (mainnet) in production',
+        );
       }
       if (!stellarConfig.horizonUrl) {
         errors.push('HORIZON_URL must be configured in production');
@@ -178,7 +197,9 @@ export class StartupValidator implements OnModuleInit {
         warnings.push('HORIZON_URL not configured (skipping in development)');
       }
       if (!stellarConfig.sorobanRpcUrl) {
-        warnings.push('SOROBAN_RPC_URL not configured (skipping in development)');
+        warnings.push(
+          'SOROBAN_RPC_URL not configured (skipping in development)',
+        );
       }
     }
 
@@ -207,20 +228,31 @@ export class StartupValidator implements OnModuleInit {
       }
     } else {
       if (!pinataApiKey || placeholderDetector.isPlaceholder(pinataApiKey)) {
-        warnings.push('PINATA_API_KEY is missing or placeholder (IPFS features will be limited)');
+        warnings.push(
+          'PINATA_API_KEY is missing or placeholder (IPFS features will be limited)',
+        );
       }
-      if (!pinataSecretKey || placeholderDetector.isPlaceholder(pinataSecretKey)) {
-        warnings.push('PINATA_SECRET_KEY is missing or placeholder (IPFS features will be limited)');
+      if (
+        !pinataSecretKey ||
+        placeholderDetector.isPlaceholder(pinataSecretKey)
+      ) {
+        warnings.push(
+          'PINATA_SECRET_KEY is missing or placeholder (IPFS features will be limited)',
+        );
       }
       if (!pinataJwt || placeholderDetector.isPlaceholder(pinataJwt)) {
-        warnings.push('PINATA_JWT is missing or placeholder (IPFS features will be limited)');
+        warnings.push(
+          'PINATA_JWT is missing or placeholder (IPFS features will be limited)',
+        );
       }
     }
 
     // === IPFS Gateway ===
     if (isProduction) {
       if (!servicesConfig.ipfsGateway) {
-        warnings.push('IPFS_GATEWAY not configured (using default Pinata gateway)');
+        warnings.push(
+          'IPFS_GATEWAY not configured (using default Pinata gateway)',
+        );
       }
     }
 
@@ -228,9 +260,14 @@ export class StartupValidator implements OnModuleInit {
     const corsOrigins = process.env.CORS_ORIGINS;
     if (isProduction) {
       if (!corsOrigins) {
-        warnings.push('CORS_ORIGINS not configured (using default localhost origins)');
+        warnings.push(
+          'CORS_ORIGINS not configured (using default localhost origins)',
+        );
       } else {
-        const origins = corsOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+        const origins = corsOrigins
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean);
         if (origins.length === 0) {
           warnings.push('CORS_ORIGINS configured but empty');
         }
