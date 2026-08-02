@@ -1,6 +1,5 @@
 import * as Joi from 'joi';
-import { baseEventSchema, validationOptions } from './base-event.schema';
-import { Event } from '../interfaces/event.interface';
+import { baseEventSchema } from './base-event.schema';
 
 // ============================================================================
 // Credit Event Schemas
@@ -143,13 +142,15 @@ const portfolioUpdatedDataSchema = Joi.object({
   companyId: Joi.string().required(),
   userId: Joi.string().required(),
   updateDate: Joi.string().isoDate().required(),
-  changes: Joi.array().items(
-    Joi.object({
-      field: Joi.string().required(),
-      oldValue: Joi.any().optional(),
-      newValue: Joi.any().required(),
-    })
-  ).required(),
+  changes: Joi.array()
+    .items(
+      Joi.object({
+        field: Joi.string().required(),
+        oldValue: Joi.any().optional(),
+        newValue: Joi.any().required(),
+      }),
+    )
+    .required(),
   metadata: Joi.object().optional(),
 });
 
@@ -168,13 +169,15 @@ const portfolioSnapshotDataSchema = Joi.object({
   totalCredits: Joi.number().min(0).required(),
   totalValue: Joi.number().min(0).required(),
   currency: Joi.string().required(),
-  holdings: Joi.array().items(
-    Joi.object({
-      creditId: Joi.string().required(),
-      amount: Joi.number().positive().required(),
-      value: Joi.number().positive().required(),
-    })
-  ).required(),
+  holdings: Joi.array()
+    .items(
+      Joi.object({
+        creditId: Joi.string().required(),
+        amount: Joi.number().positive().required(),
+        value: Joi.number().positive().required(),
+      }),
+    )
+    .required(),
   metadata: Joi.object().optional(),
 });
 

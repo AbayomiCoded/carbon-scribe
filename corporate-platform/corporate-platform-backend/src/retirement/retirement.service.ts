@@ -3,11 +3,30 @@ import { CarbonAssetService } from '../stellar/soroban/contracts/carbon-asset.se
 import { IdempotencyService } from '../stellar/soroban/idempotency/idempotency.service';
 import { DuplicateStrategy } from '../stellar/soroban/interfaces/idempotency.interface';
 import { IdempotencyKeyService } from './idempotency/idempotency-key.service';
-import {
-  CreditNotFoundError,
-  InsufficientCreditsError,
-  InvalidRetirementAmountError,
-} from '../shared/exceptions/error-classes';
+import { InvalidRetirementAmountError } from '../shared/exceptions/error-classes';
+
+export interface RetirementResult {
+  success: boolean;
+  cached: boolean;
+  isDuplicate?: boolean;
+  transactionHash?: string;
+  result?: unknown;
+  workflowId: string;
+  callId?: string;
+  originalCallId?: string;
+  idempotencyKey?: string;
+}
+
+export interface RetirementStatusResult {
+  found: boolean;
+  status: string;
+  transactionHash?: string;
+  result?: unknown;
+  submittedAt?: Date;
+  confirmedAt?: Date | null;
+  isDuplicate?: boolean;
+  workflowId: string;
+}
 
 @Injectable()
 export class RetirementService {
@@ -40,7 +59,7 @@ export class RetirementService {
     amount: number,
     purpose: string,
     idempotencyKey?: string,
-  ): Promise<unknown> {
+  ): Promise<RetirementResult> {
     // Validate amount
     if (amount <= 0) {
       throw new InvalidRetirementAmountError(amount, 1);
@@ -162,7 +181,7 @@ export class RetirementService {
   async getRetirementStatus(
     companyId: string,
     workflowId: string,
-  ): Promise<unknown> {
+  ): Promise<RetirementStatusResult> {
     const call = await this.idempotencyService.getContractCallByWorkflow(
       companyId,
       workflowId,

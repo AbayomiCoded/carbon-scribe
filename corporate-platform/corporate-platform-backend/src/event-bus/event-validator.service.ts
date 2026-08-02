@@ -1,12 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as Joi from 'joi';
 import { Event } from './interfaces/event.interface';
-import { 
-  baseEventSchema, 
-  validationOptions,
-  getEventSchema,
-  hasEventSchema,
-} from './schemas';
+import { baseEventSchema, validationOptions, getEventSchema } from './schemas';
 import { ConfigService } from '../config/config.service';
 
 /**
@@ -40,7 +35,7 @@ interface ValidationMetrics {
 
 /**
  * Event Validator Service
- * 
+ *
  * Features:
  * - Runtime schema validation using Joi
  * - Required field enforcement
@@ -110,12 +105,14 @@ export class EventValidatorService {
       // Step 4: Additional validation - version format
       const versionValid = this.validateVersion(event.version);
       if (!versionValid) {
-        const errors: ValidationError[] = [{
-          field: 'version',
-          message: 'Event version must be in semver format (e.g., 1.0.0)',
-          type: 'string.pattern.base',
-          value: event.version,
-        }];
+        const errors: ValidationError[] = [
+          {
+            field: 'version',
+            message: 'Event version must be in semver format (e.g., 1.0.0)',
+            type: 'string.pattern.base',
+            value: event.version,
+          },
+        ];
         this.logValidationFailure(event, errors);
         this.updateMetrics(event.type, false);
         if (options.throwOnError) {
@@ -133,21 +130,25 @@ export class EventValidatorService {
       return { valid: true };
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Validation error for event ${event.id}: ${err.message}`);
+      this.logger.error(
+        `Validation error for event ${event.id}: ${err.message}`,
+      );
       this.updateMetrics(event.type, false);
-      
+
       if (options.throwOnError) {
         throw err;
       }
 
       return {
         valid: false,
-        errors: [{
-          field: '_global',
-          message: err.message,
-          type: 'validation.error',
-          value: undefined,
-        }],
+        errors: [
+          {
+            field: '_global',
+            message: err.message,
+            type: 'validation.error',
+            value: undefined,
+          },
+        ],
       };
     }
   }
@@ -168,7 +169,9 @@ export class EventValidatorService {
   validateOrThrow<T = unknown>(event: Event<T>): void {
     const result = this.validate(event, { throwOnError: false });
     if (!result.valid) {
-      const errorMessages = result.errors?.map((e) => `${e.field}: ${e.message}`).join(', ');
+      const errorMessages = result.errors
+        ?.map((e) => `${e.field}: ${e.message}`)
+        .join(', ');
       throw new Error(`Event validation failed: ${errorMessages}`);
     }
   }
@@ -213,9 +216,10 @@ export class EventValidatorService {
       validCount: this.metrics.validCount,
       invalidCount: this.metrics.invalidCount,
       byEventType,
-      invalidRate: this.metrics.totalValidated > 0
-        ? this.metrics.invalidCount / this.metrics.totalValidated
-        : 0,
+      invalidRate:
+        this.metrics.totalValidated > 0
+          ? this.metrics.invalidCount / this.metrics.totalValidated
+          : 0,
     };
   }
 

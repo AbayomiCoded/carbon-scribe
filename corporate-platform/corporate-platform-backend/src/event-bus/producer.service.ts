@@ -7,7 +7,7 @@ import { DeadLetterService } from './dead-letter/dead-letter.service';
 
 /**
  * Kafka Producer Service with timeout, retry, and validation support
- * 
+ *
  * Features:
  * - Configurable send timeout (default: 10000ms)
  * - Connection timeout for broker discovery
@@ -39,14 +39,24 @@ export class ProducerService {
   /**
    * Publish a single event with validation, timeout and retry
    */
-  async publish(topic: string, event: Event, signal?: AbortSignal): Promise<void> {
+  async publish(
+    topic: string,
+    event: Event,
+    signal?: AbortSignal,
+  ): Promise<void> {
     // Validate event before publishing
-    const validationResult = this.validator.validate(event, { throwOnError: false });
-    
+    const validationResult = this.validator.validate(event, {
+      throwOnError: false,
+    });
+
     if (!validationResult.valid) {
-      const errorMessages = validationResult.errors?.map((e) => `${e.field}: ${e.message}`).join(', ');
-      this.logger.error(`Event validation failed for ${event.id}: ${errorMessages}`);
-      
+      const errorMessages = validationResult.errors
+        ?.map((e) => `${e.field}: ${e.message}`)
+        .join(', ');
+      this.logger.error(
+        `Event validation failed for ${event.id}: ${errorMessages}`,
+      );
+
       // Send invalid event to dead-letter queue
       await this.deadLetterService.sendToDeadLetter(
         topic,
@@ -54,7 +64,7 @@ export class ProducerService {
         validationResult.errors || [],
         'VALIDATION_FAILED',
       );
-      
+
       throw new Error(`Event validation failed: ${errorMessages}`);
     }
 
@@ -65,34 +75,37 @@ export class ProducerService {
       `Publishing event ${event.id} of type ${event.type} to topic ${topic}`,
     );
 
-    await this.executeWithRetry(
-      async () => {
-        const producer = this.kafkaService.getProducer();
-        await this.executeWithTimeout(
-          producer.send({
-            topic,
-            messages: [
-              {
-                key,
-                value: JSON.stringify(event),
-              },
-            ],
-          }),
-          this.sendTimeout,
-          `Kafka send to ${topic}`,
-          signal,
-        );
-      },
-      `publish event ${event.id} to ${topic}`,
-    );
+    await this.executeWithRetry(async () => {
+      const producer = this.kafkaService.getProducer();
+      await this.executeWithTimeout(
+        producer.send({
+          topic,
+          messages: [
+            {
+              key,
+              value: JSON.stringify(event),
+            },
+          ],
+        }),
+        this.sendTimeout,
+        `Kafka send to ${topic}`,
+        signal,
+      );
+    }, `publish event ${event.id} to ${topic}`);
 
-    this.logger.log(`Successfully published event ${event.id} to topic ${topic}`);
+    this.logger.log(
+      `Successfully published event ${event.id} to topic ${topic}`,
+    );
   }
 
   /**
    * Publish a batch of events with validation, timeout and retry
    */
-  async publishBatch(topic: string, events: Event[], signal?: AbortSignal): Promise<void> {
+  async publishBatch(
+    topic: string,
+    events: Event[],
+    signal?: AbortSignal,
+  ): Promise<void> {
     if (!events.length) {
       this.logger.debug('Empty event batch, skipping publish');
       return;
@@ -130,7 +143,7 @@ export class ProducerService {
 
       throw new Error(
         `Batch validation failed: ${invalidEvents.length} events invalid. ` +
-        `First error: ${invalidEvents[0].errors.map((e) => `${e.field}: ${e.message}`).join(', ')}`,
+          `First error: ${invalidEvents[0].errors.map((e) => `${e.field}: ${e.message}`).join(', ')}`,
       );
     }
 
@@ -139,59 +152,63 @@ export class ProducerService {
       value: JSON.stringify(event),
     }));
 
-    this.logger.debug(`Publishing batch of ${events.length} events to topic ${topic}`);
-
-    await this.executeWithRetry(
-      async () => {
-        const producer = this.kafkaService.getProducer();
-        await this.executeWithTimeout(
-          producer.send({
-            topic,
-            messages,
-          }),
-          this.sendTimeout,
-          `Kafka batch send to ${topic}`,
-          signal,
-        );
-      },
-      `publish batch of ${events.length} events to ${topic}`,
+    this.logger.debug(
+      `Publishing batch of ${events.length} events to topic ${topic}`,
     );
 
-    this.logger.log(`Successfully published batch of ${events.length} events to topic ${topic}`);
+    await this.executeWithRetry(async () => {
+      const producer = this.kafkaService.getProducer();
+      await this.executeWithTimeout(
+        producer.send({
+          topic,
+          messages,
+        }),
+        this.sendTimeout,
+        `Kafka batch send to ${topic}`,
+        signal,
+      );
+    }, `publish batch of ${events.length} events to ${topic}`);
+
+    this.logger.log(
+      `Successfully published batch of ${events.length} events to topic ${topic}`,
+    );
   }
 
   /**
    * Publish event without validation (for internal use)
    */
-  async publishInternal(topic: string, event: Event, signal?: AbortSignal): Promise<void> {
+  async publishInternal(
+    topic: string,
+    event: Event,
+    signal?: AbortSignal,
+  ): Promise<void> {
     const key = event.companyId || event.userId || event.source;
 
     this.logger.debug(
       `Publishing internal event ${event.id} of type ${event.type} to topic ${topic}`,
     );
 
-    await this.executeWithRetry(
-      async () => {
-        const producer = this.kafkaService.getProducer();
-        await this.executeWithTimeout(
-          producer.send({
-            topic,
-            messages: [
-              {
-                key,
-                value: JSON.stringify(event),
-              },
-            ],
-          }),
-          this.sendTimeout,
-          `Kafka send to ${topic}`,
-          signal,
-        );
-      },
-      `publish internal event ${event.id} to ${topic}`,
-    );
+    await this.executeWithRetry(async () => {
+      const producer = this.kafkaService.getProducer();
+      await this.executeWithTimeout(
+        producer.send({
+          topic,
+          messages: [
+            {
+              key,
+              value: JSON.stringify(event),
+            },
+          ],
+        }),
+        this.sendTimeout,
+        `Kafka send to ${topic}`,
+        signal,
+      );
+    }, `publish internal event ${event.id} to ${topic}`);
 
-    this.logger.log(`Successfully published internal event ${event.id} to topic ${topic}`);
+    this.logger.log(
+      `Successfully published internal event ${event.id} to topic ${topic}`,
+    );
   }
 
   /**
@@ -212,16 +229,23 @@ export class ProducerService {
 
         // Don't retry on certain errors
         if (this.isNonRetryableError(err)) {
-          this.logger.error(`Non-retryable error in ${operationName}: ${err.message}`);
+          this.logger.error(
+            `Non-retryable error in ${operationName}: ${err.message}`,
+          );
           throw err;
         }
 
         if (attempt === this.maxRetries) {
-          this.logger.error(`Failed ${operationName} after ${this.maxRetries} attempts`);
+          this.logger.error(
+            `Failed ${operationName} after ${this.maxRetries} attempts`,
+          );
           throw err;
         }
 
-        const delay = Math.min(this.retryDelay * Math.pow(2, attempt - 1), 30000);
+        const delay = Math.min(
+          this.retryDelay * Math.pow(2, attempt - 1),
+          30000,
+        );
         this.logger.warn(
           `Retry ${attempt}/${this.maxRetries} for ${operationName} in ${delay}ms: ${err.message}`,
         );
@@ -247,10 +271,14 @@ export class ProducerService {
       }, timeoutMs);
 
       if (signal) {
-        signal.addEventListener('abort', () => {
-          clearTimeout(timeoutId);
-          reject(new Error(`${operationName} cancelled`));
-        }, { once: true });
+        signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timeoutId);
+            reject(new Error(`${operationName} cancelled`));
+          },
+          { once: true },
+        );
       }
     });
 

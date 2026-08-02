@@ -16,7 +16,7 @@ import { SecurityEvents } from '../security/constants/security-events.constants'
 
 /**
  * Rate limit guard with Redis-backed distributed rate limiting
- * 
+ *
  * Features:
  * - IP-based rate limiting
  * - User-based rate limiting (authenticated users)
@@ -99,13 +99,10 @@ export class RateLimitGuard implements CanActivate {
       }
 
       // Check rate limit
-      const result = await this.rateLimitService.checkRateLimit(
-        key,
-        {
-          ...defaultConfig,
-          windowMs: effectiveWindowMs,
-        },
-      );
+      const result = await this.rateLimitService.checkRateLimit(key, {
+        ...defaultConfig,
+        windowMs: effectiveWindowMs,
+      });
 
       // Set rate limit headers
       this.setRateLimitHeaders(response, result);
@@ -166,7 +163,8 @@ export class RateLimitGuard implements CanActivate {
         windowMs: 60 * 60 * 1000,
         max: 3,
         keyPrefix: 'register',
-        message: 'Too many registration attempts. Please try again after 1 hour.',
+        message:
+          'Too many registration attempts. Please try again after 1 hour.',
       };
     }
 
@@ -184,7 +182,8 @@ export class RateLimitGuard implements CanActivate {
         windowMs: 60 * 60 * 1000,
         max: 3,
         keyPrefix: 'forgot-password',
-        message: 'Too many password reset requests. Please try again after 1 hour.',
+        message:
+          'Too many password reset requests. Please try again after 1 hour.',
         enableGraduatedCooldown: true,
       };
     }
@@ -194,7 +193,8 @@ export class RateLimitGuard implements CanActivate {
         windowMs: 60 * 60 * 1000,
         max: 3,
         keyPrefix: 'reset-password',
-        message: 'Too many password reset attempts. Please try again after 1 hour.',
+        message:
+          'Too many password reset attempts. Please try again after 1 hour.',
       };
     }
 
@@ -236,7 +236,10 @@ export class RateLimitGuard implements CanActivate {
 
     // Add email for login/forgot-password endpoints
     const body = request.body as any;
-    if (body?.email && (config.keyPrefix === 'login' || config.keyPrefix === 'forgot-password')) {
+    if (
+      body?.email &&
+      (config.keyPrefix === 'login' || config.keyPrefix === 'forgot-password')
+    ) {
       parts.push(`email:${body.email}`);
     }
 

@@ -134,7 +134,8 @@ export class HealthService {
         requestPromise,
         new Promise<never>((_, reject) =>
           setTimeout(
-            () => reject(new Error('IPFS gateway reachability check timed out')),
+            () =>
+              reject(new Error('IPFS gateway reachability check timed out')),
             2000,
           ),
         ),

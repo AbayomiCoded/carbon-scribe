@@ -425,7 +425,10 @@ async function bootstrap() {
   // Graceful Shutdown
   // ============================================================================
 
-  const shutdownGracePeriod = parseInt(process.env.SHUTDOWN_GRACE_PERIOD || '30000', 10);
+  const shutdownGracePeriod = parseInt(
+    process.env.SHUTDOWN_GRACE_PERIOD || '30000',
+    10,
+  );
 
   /**
    * Gracefully shutdown the application on SIGTERM
@@ -434,7 +437,9 @@ async function bootstrap() {
    * - Closes all connections and exits
    */
   process.on('SIGTERM', async () => {
-    logger.log(`Received SIGTERM, waiting ${shutdownGracePeriod}ms for in-flight requests...`);
+    logger.log(
+      `Received SIGTERM, waiting ${shutdownGracePeriod}ms for in-flight requests...`,
+    );
 
     // Close the HTTP server first to stop accepting new connections
     server.close(() => {
@@ -454,7 +459,9 @@ async function bootstrap() {
    * Gracefully shutdown the application on SIGINT (Ctrl+C)
    */
   process.on('SIGINT', async () => {
-    logger.log(`Received SIGINT, waiting ${shutdownGracePeriod}ms for in-flight requests...`);
+    logger.log(
+      `Received SIGINT, waiting ${shutdownGracePeriod}ms for in-flight requests...`,
+    );
 
     server.close(() => {
       logger.log('HTTP server closed');
@@ -470,7 +477,10 @@ async function bootstrap() {
    * Handle uncaught exceptions during shutdown
    */
   process.on('uncaughtException', (error) => {
-    logger.error(`Uncaught exception during shutdown: ${error.message}`, error.stack);
+    logger.error(
+      `Uncaught exception during shutdown: ${error.message}`,
+      error.stack,
+    );
     process.exit(1);
   });
 

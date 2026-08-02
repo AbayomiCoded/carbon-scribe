@@ -9,7 +9,7 @@ import {
 import { Request, Response } from 'express';
 import { DomainError } from '../exceptions/domain-error';
 import { LoggerService } from '../../logger/logger.service';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 /**
  * Standardized error response envelope
@@ -29,7 +29,7 @@ export interface ErrorResponse {
 /**
  * Global HTTP exception filter that catches all exceptions and transforms them
  * into consistent error responses.
- * 
+ *
  * Features:
  * - Maps domain errors to HTTP status codes
  * - Translates Prisma errors to domain errors
@@ -74,7 +74,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       // Handle other NestJS HTTP exceptions
       statusCode = exception.getStatus();
       errorResponse = this.formatHttpException(exception, request);
-    } else if (exception instanceof PrismaClientKnownRequestError) {
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       // Handle Prisma errors
       const translated = this.translatePrismaError(exception);
       statusCode = translated.statusCode;
@@ -111,14 +111,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     path: string;
   } {
     const userId = (request as any).user?.id || (request as any).userId;
-    const companyId = (request as any).companyId || (request as any).company?.id;
+    const companyId =
+      (request as any).companyId || (request as any).company?.id;
     const requestId = (request as any).requestId;
 
     return {
       userId,
       companyId,
       requestId,
-      ip: request.ip || request.headers['x-forwarded-for'] as string,
+      ip: request.ip || (request.headers['x-forwarded-for'] as string),
       method: request.method,
       path: request.url,
     };
@@ -127,7 +128,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
   /**
    * Format a domain error into a consistent error response
    */
-  private formatDomainError(error: DomainError, request: Request): ErrorResponse {
+  private formatDomainError(
+    error: DomainError,
+    request: Request,
+  ): ErrorResponse {
     return {
       success: false,
       error: {
@@ -144,7 +148,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
   /**
    * Format a NestJS validation error with field-specific details
    */
-  private formatNestValidationError(exception: BadRequestException, request: Request): ErrorResponse {
+  private formatNestValidationError(
+    exception: BadRequestException,
+    request: Request,
+  ): ErrorResponse {
     const response = exception.getResponse() as any;
     const message = response.message || 'Validation failed';
     const details: Record<string, unknown> = {};
@@ -172,7 +179,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
   /**
    * Format a NestJS HTTP exception
    */
-  private formatHttpException(exception: HttpException, request: Request): ErrorResponse {
+  private formatHttpException(
+    exception: HttpException,
+    request: Request,
+  ): ErrorResponse {
     const status = exception.getStatus();
     const response = exception.getResponse() as any;
 
@@ -180,8 +190,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       success: false,
       error: {
         code: `HTTP_${status}`,
-        message: typeof response === 'string' ? response : response.message || exception.message,
-        details: typeof response === 'object' && response !== null ? response : undefined,
+        message:
+          typeof response === 'string'
+            ? response
+            : response.message || exception.message,
+        details:
+          typeof response === 'object' && response !== null
+            ? response
+            : undefined,
         timestamp: new Date().toISOString(),
         path: request.url,
         method: request.method,
@@ -192,14 +208,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
   /**
    * Format an unknown error (fallback)
    */
-  private formatUnknownError(exception: unknown, request: Request): ErrorResponse {
-    const message = exception instanceof Error ? exception.message : 'An unexpected error occurred';
+  private formatUnknownError(
+    exception: unknown,
+    request: Request,
+  ): ErrorResponse {
+    const message =
+      exception instanceof Error
+        ? exception.message
+        : 'An unexpected error occurred';
 
     return {
       success: false,
       error: {
         code: 'INTERNAL_002',
-        message: this.isDevelopment ? message : 'An internal server error occurred',
+        message: this.isDevelopment
+          ? message
+          : 'An internal server error occurred',
         timestamp: new Date().toISOString(),
         path: request.url,
         method: request.method,
@@ -210,7 +234,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
   /**
    * Translate Prisma known request errors to domain errors
    */
-  private translatePrismaError(error: PrismaClientKnownRequestError): DomainError {
+  private translatePrismaError(
+    error: Prisma.PrismaClientKnownRequestError,
+  ): DomainError {
     const { code, meta } = error;
 
     // P2025: Record not found
@@ -307,7 +333,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
   ): void {
     const isClientError = statusCode >= 400 && statusCode < 500;
     const level = isClientError ? 'warn' : 'error';
-    const error = exception instanceof Error ? exception : new Error(String(exception));
+    const error =
+      exception instanceof Error ? exception : new Error(String(exception));
 
     // Build log metadata
     const metadata: Record<string, unknown> = {
@@ -328,20 +355,33 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Log with appropriate level
     if (level === 'error') {
-      this.logger.error(`[HTTP Error] ${errorResponse.error.code}: ${errorResponse.error.message}`, {
-        ...metadata,
-        error: error.message,
-      });
+      this.logger.error(
+        `[HTTP Error] ${errorResponse.error.code}: ${errorResponse.error.message}`,
+        {
+          ...metadata,
+          error: {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          },
+        },
+      );
     } else {
-      this.logger.warn(`[HTTP Error] ${errorResponse.error.code}: ${errorResponse.error.message}`, metadata);
+      this.logger.warn(
+        `[HTTP Error] ${errorResponse.error.code}: ${errorResponse.error.message}`,
+        metadata,
+      );
     }
 
     // Special logging for 5xx errors (should trigger alerts)
     if (statusCode >= 500) {
       this.logger.fatal(`Server error at ${context.method} ${context.path}`, {
         ...metadata,
-        error: error.message,
-        stack: this.isDevelopment ? error.stack : undefined,
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: this.isDevelopment ? error.stack : undefined,
+        },
       });
     }
   }

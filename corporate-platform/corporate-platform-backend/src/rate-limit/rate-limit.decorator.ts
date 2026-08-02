@@ -1,6 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
 import { RateLimitDecoratorOptions } from './rate-limit.types';
-import { AUTH_RATE_LIMITS } from './rate-limit.types';
 
 export const RATE_LIMIT_KEY = 'rate_limit';
 
@@ -71,7 +70,8 @@ export const RateLimits = {
     max: 30,
     windowMs: 60000,
     keyPrefix: 'similar-credits',
-    message: 'Too many similar credits requests. Please wait before trying again.',
+    message:
+      'Too many similar credits requests. Please wait before trying again.',
   },
 
   /**
@@ -143,7 +143,8 @@ export const RateLimits = {
     max: 5,
     windowMs: 60 * 60 * 1000,
     keyPrefix: 'change-password',
-    message: 'Too many password change attempts. Please try again after 1 hour.',
+    message:
+      'Too many password change attempts. Please try again after 1 hour.',
   },
 
   /**

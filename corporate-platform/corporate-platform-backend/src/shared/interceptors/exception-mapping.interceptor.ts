@@ -9,7 +9,7 @@ import {
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DomainError } from '../exceptions/domain-error';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import {
   ResourceNotFoundError,
   UniqueConstraintViolationError,
@@ -19,7 +19,7 @@ import {
 /**
  * Interceptor that maps domain errors and other exceptions to appropriate responses
  * before they reach the global exception filter.
- * 
+ *
  * This interceptor provides an additional layer of error transformation,
  * ensuring that domain errors are properly structured and Prisma errors
  * are translated before being handled by the global filter.
@@ -35,7 +35,7 @@ export class ExceptionMappingInterceptor implements NestInterceptor {
         }
 
         // Translate Prisma errors
-        if (error instanceof PrismaClientKnownRequestError) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
           const translated = this.translatePrismaError(error);
           return throwError(() => translated);
         }
@@ -55,7 +55,9 @@ export class ExceptionMappingInterceptor implements NestInterceptor {
   /**
    * Translate Prisma known request errors to domain errors
    */
-  private translatePrismaError(error: PrismaClientKnownRequestError): DomainError {
+  private translatePrismaError(
+    error: Prisma.PrismaClientKnownRequestError,
+  ): DomainError {
     const { code, meta } = error;
 
     // P2025: Record not found
@@ -69,7 +71,9 @@ export class ExceptionMappingInterceptor implements NestInterceptor {
     if (code === 'P2002') {
       const target = (meta as any)?.target || 'field';
       const field = Array.isArray(target) ? target.join(', ') : target;
-      return new UniqueConstraintViolationError(field, 'unknown', { prismaError: code });
+      return new UniqueConstraintViolationError(field, 'unknown', {
+        prismaError: code,
+      });
     }
 
     // P2003: Foreign key constraint violation
@@ -92,8 +96,12 @@ export class ExceptionMappingInterceptor implements NestInterceptor {
    * Wrap unknown errors
    */
   private wrapUnknownError(error: unknown): DomainError {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred';
-    const details = error instanceof Error ? { stack: error.stack } : { error: String(error) };
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred';
+    const details =
+      error instanceof Error
+        ? { stack: error.stack }
+        : { error: String(error) };
 
     return new (class extends DomainError {
       constructor() {

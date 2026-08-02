@@ -116,7 +116,8 @@ export const AUTH_RATE_LIMITS: Record<string, RateLimitEndpointConfig> = {
     limit: 5,
     windowSeconds: 60 * 60, // 1 hour
     keyPrefix: 'change-password',
-    message: 'Too many password change attempts. Please try again after 1 hour.',
+    message:
+      'Too many password change attempts. Please try again after 1 hour.',
   },
   me: {
     limit: 30,

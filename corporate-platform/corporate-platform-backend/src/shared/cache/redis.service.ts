@@ -1,10 +1,15 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import Redis, { RedisOptions } from 'ioredis';
 import { ConfigService } from '../../config/config.service';
 
 /**
  * Redis service with timeout, retry, and connection management
- * 
+ *
  * Features:
  * - Configurable timeout (default: 5000ms)
  * - Retry strategy with max attempts
@@ -53,7 +58,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
 
     const redisConfig = this.configService.getRedisConfig();
-    const url = redisConfig?.url || process.env.REDIS_URL || 'redis://localhost:6379';
+    const url =
+      redisConfig?.url || process.env.REDIS_URL || 'redis://localhost:6379';
 
     const options: RedisOptions = {
       connectTimeout: this.timeout,
@@ -63,11 +69,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           return null; // Stop retrying during shutdown
         }
         if (times > this.maxRetries) {
-          this.logger.error(`Redis connection failed after ${this.maxRetries} retries`);
+          this.logger.error(
+            `Redis connection failed after ${this.maxRetries} retries`,
+          );
           return null; // Stop retrying
         }
         const delay = Math.min(this.retryDelay * Math.pow(2, times - 1), 30000);
-        this.logger.warn(`Redis connection retry ${times}/${this.maxRetries} in ${delay}ms`);
+        this.logger.warn(
+          `Redis connection retry ${times}/${this.maxRetries} in ${delay}ms`,
+        );
         return delay;
       },
       maxRetriesPerRequest: this.maxRetries,
@@ -147,7 +157,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async set(key: string, value: string, ttl?: number): Promise<string> {
     const client = this.getClient();
-    const command = ttl ? client.set(key, value, 'EX', ttl) : client.set(key, value);
+    const command = ttl
+      ? client.set(key, value, 'EX', ttl)
+      : client.set(key, value);
     return this.executeWithTimeout(command, this.timeout, `SET ${key}`);
   }
 
@@ -184,7 +196,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async getdel(key: string): Promise<string | null> {
     const client = this.getClient();
-    return this.executeWithTimeout(client.getdel(key), this.timeout, `GETDEL ${key}`);
+    return this.executeWithTimeout(
+      client.getdel(key),
+      this.timeout,
+      `GETDEL ${key}`,
+    );
   }
 
   /**
@@ -192,7 +208,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async exists(key: string): Promise<number> {
     const client = this.getClient();
-    return this.executeWithTimeout(client.exists(key), this.timeout, `EXISTS ${key}`);
+    return this.executeWithTimeout(
+      client.exists(key),
+      this.timeout,
+      `EXISTS ${key}`,
+    );
   }
 
   /**
@@ -208,7 +228,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async incr(key: string): Promise<number> {
     const client = this.getClient();
-    return this.executeWithTimeout(client.incr(key), this.timeout, `INCR ${key}`);
+    return this.executeWithTimeout(
+      client.incr(key),
+      this.timeout,
+      `INCR ${key}`,
+    );
   }
 
   /**
@@ -233,7 +257,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   ): Promise<T> {
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        reject(new Error(`Redis command "${commandName}" timed out after ${timeoutMs}ms`));
+        reject(
+          new Error(
+            `Redis command "${commandName}" timed out after ${timeoutMs}ms`,
+          ),
+        );
       }, timeoutMs);
     });
 
@@ -241,7 +269,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return await Promise.race([promise, timeoutPromise]);
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Redis command failed: ${commandName} - ${err.message}`);
+      this.logger.error(
+        `Redis command failed: ${commandName} - ${err.message}`,
+      );
       throw err;
     }
   }
@@ -271,7 +301,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async keys(pattern: string): Promise<string[]> {
     const client = this.getClient();
-    return this.executeWithTimeout(client.keys(pattern), this.timeout, `KEYS ${pattern}`);
+    return this.executeWithTimeout(
+      client.keys(pattern),
+      this.timeout,
+      `KEYS ${pattern}`,
+    );
   }
 
   /**
@@ -288,6 +322,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async mget(...keys: string[]): Promise<(string | null)[]> {
     const client = this.getClient();
-    return this.executeWithTimeout(client.mget(keys), this.timeout, `MGET ${keys.join(',')}`);
+    return this.executeWithTimeout(
+      client.mget(keys),
+      this.timeout,
+      `MGET ${keys.join(',')}`,
+    );
   }
 }

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../shared/database/prisma.service';
@@ -48,7 +44,7 @@ export class AuthService {
   // ============================================================================
   // REMOVED: In-memory brute force protection (loginAttempts Map, maxAttempts,
   // lockMinutes, ensureNotLocked, registerFailedAttempt, clearFailedAttempts)
-  // 
+  //
   // REPLACED BY: Redis-backed RateLimitGuard with distributed rate limiting
   // - Login: 5 attempts per 15 minutes per IP + email
   // - Register: 3 attempts per hour per IP

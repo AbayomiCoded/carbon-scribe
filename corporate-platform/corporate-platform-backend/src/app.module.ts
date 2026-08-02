@@ -43,7 +43,6 @@ import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { ExceptionMappingInterceptor } from './shared/interceptors/exception-mapping.interceptor';
 import { RequestTimeoutInterceptor } from './shared/interceptors/request-timeout.interceptor';
 
-
 @Module({
   imports: [
     ConfigModule,

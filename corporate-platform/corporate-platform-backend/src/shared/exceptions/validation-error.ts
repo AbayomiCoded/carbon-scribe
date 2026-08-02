@@ -8,12 +8,8 @@ export class EventValidationError extends DomainError {
     message: string,
     errors: Array<{ field: string; message: string }>,
   ) {
-    super(
-      'EventValidationError',
-      'VALIDATION_002',
-      message,
-      400,
-      { errors },
-    );
+    super('EventValidationError', ErrorCodes.VALIDATION_002, message, 400, {
+      errors,
+    });
   }
 }

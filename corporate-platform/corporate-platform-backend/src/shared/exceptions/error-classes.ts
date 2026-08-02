@@ -16,14 +16,11 @@ export class InvalidCredentialsError extends DomainError {
 }
 
 export class UnauthorizedError extends DomainError {
-  constructor(message = 'Unauthorized access', details?: Record<string, unknown>) {
-    super(
-      'UnauthorizedError',
-      ErrorCodes.AUTH_002,
-      message,
-      401,
-      details,
-    );
+  constructor(
+    message = 'Unauthorized access',
+    details?: Record<string, unknown>,
+  ) {
+    super('UnauthorizedError', ErrorCodes.AUTH_002, message, 401, details);
   }
 }
 
@@ -104,28 +101,20 @@ export class SessionExpiredError extends DomainError {
  */
 export class ValidationError extends DomainError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(
-      'ValidationError',
-      ErrorCodes.VALIDATION_001,
-      message,
-      400,
-      details,
-    );
+    super('ValidationError', ErrorCodes.VALIDATION_001, message, 400, details);
   }
 }
 
 export class FieldValidationError extends DomainError {
-  constructor(field: string, message: string, details?: Record<string, unknown>) {
-    super(
-      'FieldValidationError',
-      ErrorCodes.VALIDATION_004,
-      message,
-      400,
-      {
-        ...details,
-        field,
-      },
-    );
+  constructor(
+    field: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ) {
+    super('FieldValidationError', ErrorCodes.VALIDATION_004, message, 400, {
+      ...details,
+      field,
+    });
   }
 }
 
@@ -133,7 +122,11 @@ export class FieldValidationError extends DomainError {
  * Not Found Errors
  */
 export class ResourceNotFoundError extends DomainError {
-  constructor(resource: string, identifier?: string, details?: Record<string, unknown>) {
+  constructor(
+    resource: string,
+    identifier?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(
       'ResourceNotFoundError',
       ErrorCodes.NOT_FOUND_001,
@@ -288,7 +281,11 @@ export class UniqueConstraintViolationError extends DomainError {
  * Business Rule Errors
  */
 export class InsufficientBalanceError extends DomainError {
-  constructor(required: number, available: number, details?: Record<string, unknown>) {
+  constructor(
+    required: number,
+    available: number,
+    details?: Record<string, unknown>,
+  ) {
     super(
       'InsufficientBalanceError',
       ErrorCodes.BUSINESS_001,
@@ -316,7 +313,12 @@ export class BusinessRuleViolationError extends DomainError {
 }
 
 export class InsufficientCreditsError extends DomainError {
-  constructor(creditId: string, required: number, available: number, details?: Record<string, unknown>) {
+  constructor(
+    creditId: string,
+    required: number,
+    available: number,
+    details?: Record<string, unknown>,
+  ) {
     super(
       'InsufficientCreditsError',
       ErrorCodes.BUSINESS_004,
@@ -348,7 +350,12 @@ export class CreditNotAvailableError extends DomainError {
 }
 
 export class InvalidRetirementAmountError extends DomainError {
-  constructor(amount: number, minAmount?: number, maxAmount?: number, details?: Record<string, unknown>) {
+  constructor(
+    amount: number,
+    minAmount?: number,
+    maxAmount?: number,
+    details?: Record<string, unknown>,
+  ) {
     super(
       'InvalidRetirementAmountError',
       ErrorCodes.BUSINESS_007,
@@ -369,13 +376,7 @@ export class InvalidRetirementAmountError extends DomainError {
  */
 export class DatabaseError extends DomainError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(
-      'DatabaseError',
-      ErrorCodes.DATABASE_001,
-      message,
-      500,
-      details,
-    );
+    super('DatabaseError', ErrorCodes.DATABASE_001, message, 500, details);
   }
 }
 
@@ -399,7 +400,11 @@ export class DatabaseRecordNotFoundError extends DomainError {
  * External Service Errors
  */
 export class ExternalServiceError extends DomainError {
-  constructor(service: string, message: string, details?: Record<string, unknown>) {
+  constructor(
+    service: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ) {
     super(
       'ExternalServiceError',
       ErrorCodes.EXTERNAL_001,
@@ -441,7 +446,10 @@ export class IpfsError extends DomainError {
  * Internal Errors
  */
 export class InternalServerError extends DomainError {
-  constructor(message = 'An internal server error occurred', details?: Record<string, unknown>) {
+  constructor(
+    message = 'An internal server error occurred',
+    details?: Record<string, unknown>,
+  ) {
     super(
       'InternalServerError',
       ErrorCodes.INTERNAL_001,
@@ -453,13 +461,10 @@ export class InternalServerError extends DomainError {
 }
 
 export class UnexpectedError extends DomainError {
-  constructor(message = 'An unexpected error occurred', details?: Record<string, unknown>) {
-    super(
-      'UnexpectedError',
-      ErrorCodes.INTERNAL_002,
-      message,
-      500,
-      details,
-    );
+  constructor(
+    message = 'An unexpected error occurred',
+    details?: Record<string, unknown>,
+  ) {
+    super('UnexpectedError', ErrorCodes.INTERNAL_002, message, 500, details);
   }
 }

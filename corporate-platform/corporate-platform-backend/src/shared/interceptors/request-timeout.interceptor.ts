@@ -11,7 +11,7 @@ import { ConfigService } from '../../config/config.service';
 
 /**
  * Request timeout interceptor that cancels upstream calls when HTTP request times out
- * 
+ *
  * Features:
  * - Configurable request timeout
  * - Propagates cancellation to upstream calls
@@ -44,11 +44,18 @@ export class RequestTimeoutInterceptor implements NestInterceptor {
         clearTimeout(timeoutId);
 
         if (error.name === 'TimeoutError') {
-          return throwError(() => new RequestTimeoutException('Request timed out'));
+          return throwError(
+            () => new RequestTimeoutException('Request timed out'),
+          );
         }
 
-        if (error.message?.includes('cancelled') || error.message?.includes('aborted')) {
-          return throwError(() => new RequestTimeoutException('Request cancelled'));
+        if (
+          error.message?.includes('cancelled') ||
+          error.message?.includes('aborted')
+        ) {
+          return throwError(
+            () => new RequestTimeoutException('Request cancelled'),
+          );
         }
 
         return throwError(() => error);

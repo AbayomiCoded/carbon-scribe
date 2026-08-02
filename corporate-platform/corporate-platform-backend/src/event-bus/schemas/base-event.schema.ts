@@ -32,11 +32,15 @@ export const baseEventSchema = Joi.object({
   data: Joi.any().required().messages({
     'any.required': 'Event data is required',
   }),
-  version: Joi.string().pattern(/^\d+\.\d+\.\d+$/).required().messages({
-    'string.empty': 'Event version is required',
-    'string.pattern.base': 'Event version must be in semver format (e.g., 1.0.0)',
-    'any.required': 'Event version is required',
-  }),
+  version: Joi.string()
+    .pattern(/^\d+\.\d+\.\d+$/)
+    .required()
+    .messages({
+      'string.empty': 'Event version is required',
+      'string.pattern.base':
+        'Event version must be in semver format (e.g., 1.0.0)',
+      'any.required': 'Event version is required',
+    }),
 });
 
 /**

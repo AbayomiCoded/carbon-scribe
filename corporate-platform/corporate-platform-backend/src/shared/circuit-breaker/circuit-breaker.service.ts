@@ -23,7 +23,7 @@ export interface CircuitBreakerConfig {
 
 /**
  * Circuit breaker service for protecting against cascading failures
- * 
+ *
  * Features:
  * - Three states: CLOSED, OPEN, HALF_OPEN
  * - Configurable failure and success thresholds
@@ -65,14 +65,21 @@ export class CircuitBreakerService {
     // Check if circuit is open
     if (state.state === CircuitState.OPEN) {
       // Check if reset timeout has elapsed
-      if (Date.now() - state.lastFailureTime > this.defaultConfig.resetTimeout) {
+      if (
+        Date.now() - state.lastFailureTime >
+        this.defaultConfig.resetTimeout
+      ) {
         this.logger.log(`Circuit for ${service} transitioning to HALF_OPEN`);
         state.state = CircuitState.HALF_OPEN;
       } else {
         const remaining = Math.ceil(
-          (this.defaultConfig.resetTimeout - (Date.now() - state.lastFailureTime)) / 1000,
+          (this.defaultConfig.resetTimeout -
+            (Date.now() - state.lastFailureTime)) /
+            1000,
         );
-        throw new Error(`Circuit breaker open for ${service} (resets in ${remaining}s)`);
+        throw new Error(
+          `Circuit breaker open for ${service} (resets in ${remaining}s)`,
+        );
       }
     }
 
@@ -142,7 +149,10 @@ export class CircuitBreakerService {
    * Get status of all circuits
    */
   getStatus(): Record<string, { state: CircuitState; failureCount: number }> {
-    const status: Record<string, { state: CircuitState; failureCount: number }> = {};
+    const status: Record<
+      string,
+      { state: CircuitState; failureCount: number }
+    > = {};
     for (const [service, state] of this.circuits) {
       status[service] = {
         state: state.state,

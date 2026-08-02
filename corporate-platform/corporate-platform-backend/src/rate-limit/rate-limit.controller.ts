@@ -1,10 +1,15 @@
-import { Controller, Get, Delete, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Delete,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { RateLimitService } from './rate-limit.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
 import { Roles } from '../rbac/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @Controller('internal/rate-limit')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -24,10 +29,7 @@ export class RateLimitController {
    * Get rate limit status for a specific key
    */
   @Get('status/:key')
-  async getStatus(
-    @Param('key') key: string,
-    @Query('prefix') prefix: string,
-  ) {
+  async getStatus(@Param('key') key: string, @Query('prefix') prefix: string) {
     const client = this.rateLimitService['redisService'].getClient();
     const redisKey = `rate-limit:${prefix || 'default'}:${key}`;
 
@@ -41,7 +43,8 @@ export class RateLimitController {
         key: redisKey,
         count: parseInt(count || '0', 10),
         ttl: ttl > 0 ? ttl : 0,
-        resetTime: ttl > 0 ? new Date(Date.now() + ttl * 1000).toISOString() : null,
+        resetTime:
+          ttl > 0 ? new Date(Date.now() + ttl * 1000).toISOString() : null,
       };
     } catch {
       return {

@@ -13,11 +13,11 @@ import {
   ContractSimulation,
 } from './contracts/contract.interface';
 import * as StellarSdk from '@stellar/stellar-sdk';
-import { TimeoutError } from '../../shared/exceptions/error-classes';
+import { TimeoutError } from '../../shared/exceptions/timeout-error';
 
 /**
  * Soroban Service with timeout and retry configuration
- * 
+ *
  * Timeout defaults:
  * - simulateTransaction: 30s
  * - sendTransaction: 60s
@@ -281,7 +281,7 @@ export class SorobanService {
     contractId: string,
     startLedger: number,
     signal?: AbortSignal,
-  ): Promise<unknown[]> {
+  ): Promise<any[]> {
     const safeStartLedger = Number.isFinite(startLedger)
       ? Math.max(1, Math.floor(startLedger))
       : 1;
@@ -351,14 +351,20 @@ export class SorobanService {
   ): Promise<T> {
     const timeoutPromise = new Promise<never>((_, reject) => {
       const timeoutId = setTimeout(() => {
-        reject(new TimeoutError(`${operationName} timed out after ${timeoutMs}ms`));
+        reject(
+          new TimeoutError(`${operationName} timed out after ${timeoutMs}ms`),
+        );
       }, timeoutMs);
 
       if (signal) {
-        signal.addEventListener('abort', () => {
-          clearTimeout(timeoutId);
-          reject(new Error(`${operationName} cancelled`));
-        }, { once: true });
+        signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timeoutId);
+            reject(new Error(`${operationName} cancelled`));
+          },
+          { once: true },
+        );
       }
     });
 

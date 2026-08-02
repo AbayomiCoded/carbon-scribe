@@ -1,2 +1,2 @@
 export * from './exception-mapping.interceptor';
-export * from './logging.interceptor';
+export * from './request-timeout.interceptor';

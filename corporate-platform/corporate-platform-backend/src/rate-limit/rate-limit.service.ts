@@ -177,13 +177,14 @@ export class RateLimitService {
     const today = now.toISOString().slice(0, 10);
 
     try {
-      const [requests, blocked, violations, totalRequests, allowedRequests] = await Promise.all([
-        client.get(`rate-limit:requests:${endpoint}:${today}`),
-        client.get(`rate-limit:blocked:${endpoint}:${today}`),
-        client.llen(`rate-limit:violations:${endpoint}`),
-        client.get(`rate-limit:total-requests:${endpoint}:${today}`),
-        client.get(`rate-limit:allowed-requests:${endpoint}:${today}`),
-      ]);
+      const [requests, blocked, violations, totalRequests, allowedRequests] =
+        await Promise.all([
+          client.get(`rate-limit:requests:${endpoint}:${today}`),
+          client.get(`rate-limit:blocked:${endpoint}:${today}`),
+          client.llen(`rate-limit:violations:${endpoint}`),
+          client.get(`rate-limit:total-requests:${endpoint}:${today}`),
+          client.get(`rate-limit:allowed-requests:${endpoint}:${today}`),
+        ]);
 
       const requestsCount = parseInt(requests || '0', 10);
       const blockedCount = parseInt(blocked || '0', 10);

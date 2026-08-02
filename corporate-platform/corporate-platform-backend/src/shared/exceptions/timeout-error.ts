@@ -5,13 +5,7 @@ import { DomainError, ErrorCodes } from './domain-error';
  */
 export class TimeoutError extends DomainError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(
-      'TimeoutError',
-      'TIMEOUT_001',
-      message,
-      504,
-      details,
-    );
+    super('TimeoutError', ErrorCodes.TIMEOUT_001, message, 504, details);
   }
 }
 
@@ -22,7 +16,7 @@ export class CircuitBreakerOpenError extends DomainError {
   constructor(service: string, details?: Record<string, unknown>) {
     super(
       'CircuitBreakerOpenError',
-      'CIRCUIT_001',
+      ErrorCodes.CIRCUIT_001,
       `Circuit breaker open for service: ${service}`,
       503,
       {

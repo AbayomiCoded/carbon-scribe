@@ -25,6 +25,10 @@ import {
   RefreshRateLimit,
   ForgotPasswordRateLimit,
   ResetPasswordRateLimit,
+  ChangePasswordRateLimit,
+  MeRateLimit,
+  SessionsRateLimit,
+  TerminateSessionRateLimit,
 } from '../rate-limit/rate-limit.decorator';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard';
 
@@ -81,12 +85,7 @@ export class AuthController {
    * Rate limit: 5 attempts per hour (authenticated)
    */
   @UseGuards(JwtAuthGuard, RateLimitGuard)
-  @RateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 5,
-    keyPrefix: 'change-password',
-    message: 'Too many password change attempts. Please try again after 1 hour.',
-  })
+  @ChangePasswordRateLimit()
   @Post('change-password')
   async changePassword(
     @CurrentUser() user: JwtPayload,
@@ -122,12 +121,7 @@ export class AuthController {
    * Rate limit: 30 attempts per minute (authenticated)
    */
   @UseGuards(JwtAuthGuard, RateLimitGuard)
-  @RateLimit({
-    windowMs: 60 * 1000,
-    max: 30,
-    keyPrefix: 'me',
-    message: 'Too many profile requests. Please try again later.',
-  })
+  @MeRateLimit()
   @Get('me')
   async me(@CurrentUser() user: JwtPayload) {
     return { user: await this.authService.me(user.sub) };
@@ -138,12 +132,7 @@ export class AuthController {
    * Rate limit: 10 attempts per minute (authenticated)
    */
   @UseGuards(JwtAuthGuard, RateLimitGuard)
-  @RateLimit({
-    windowMs: 60 * 1000,
-    max: 10,
-    keyPrefix: 'sessions',
-    message: 'Too many session requests. Please try again later.',
-  })
+  @SessionsRateLimit()
   @Get('sessions')
   async sessions(@CurrentUser() user: JwtPayload) {
     return this.authService.listSessions(user.sub);
@@ -154,12 +143,7 @@ export class AuthController {
    * Rate limit: 5 attempts per minute (authenticated)
    */
   @UseGuards(JwtAuthGuard, RateLimitGuard)
-  @RateLimit({
-    windowMs: 60 * 1000,
-    max: 5,
-    keyPrefix: 'terminate-session',
-    message: 'Too many session termination attempts. Please try again later.',
-  })
+  @TerminateSessionRateLimit()
   @Delete('sessions/:id')
   async terminateSession(@CurrentUser() user: JwtPayload, @Req() req: Request) {
     const sessionId = Array.isArray(req.params.id)

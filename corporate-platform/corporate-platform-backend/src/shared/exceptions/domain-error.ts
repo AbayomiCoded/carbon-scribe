@@ -74,6 +74,8 @@ export abstract class DomainError extends Error {
  * - DATABASE: Database operation errors
  * - EXTERNAL: External service errors
  * - INTERNAL: Internal server errors
+ * - TIMEOUT: Upstream call timeout errors
+ * - CIRCUIT: Circuit breaker errors
  */
 export const ErrorCodes = {
   // Authentication & Authorization (AUTH)
@@ -134,6 +136,12 @@ export const ErrorCodes = {
   // Internal (INTERNAL)
   INTERNAL_001: 'INTERNAL_001', // Internal server error
   INTERNAL_002: 'INTERNAL_002', // Unexpected error
+
+  // Timeout (TIMEOUT)
+  TIMEOUT_001: 'TIMEOUT_001', // Upstream call timed out
+
+  // Circuit Breaker (CIRCUIT)
+  CIRCUIT_001: 'CIRCUIT_001', // Circuit breaker open
 } as const;
 
-export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

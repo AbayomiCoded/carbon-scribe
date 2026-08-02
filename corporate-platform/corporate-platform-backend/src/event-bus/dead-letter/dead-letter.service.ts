@@ -19,7 +19,7 @@ export interface DeadLetterEntry {
 
 /**
  * Dead Letter Queue Service
- * 
+ *
  * Features:
  * - Routing invalid events to DLQ
  * - Preserving original event metadata
@@ -31,6 +31,42 @@ export class DeadLetterService {
   private readonly logger = new Logger(DeadLetterService.name);
 
   constructor(private readonly kafkaService: KafkaService) {}
+
+  /**
+   * Route a raw failed message (e.g. unparseable payload or exhausted
+   * consumer retries) to the dead-letter queue.
+   */
+  async routeToDlq(
+    originalTopic: string,
+    message: unknown,
+    error: Error,
+  ): Promise<void> {
+    try {
+      const producer = this.kafkaService.getProducer();
+
+      const dlqPayload = {
+        originalTopic,
+        originalMessage: message,
+        error: error.message,
+        stackTrace: error.stack,
+        timestamp: new Date().toISOString(),
+      };
+
+      await producer.send({
+        topic: TOPIC_REGISTRY.DEAD_LETTER_QUEUE.name,
+        messages: [
+          {
+            value: JSON.stringify(dlqPayload),
+          },
+        ],
+      });
+
+      this.logger.warn(`Message routed to DLQ from topic ${originalTopic}`);
+    } catch (dlqError) {
+      this.logger.error('Failed to route message to DLQ', dlqError);
+      // Don't throw - we don't want to crash the consumer loop if DLQ fails
+    }
+  }
 
   /**
    * Send an invalid event to the dead-letter queue
@@ -73,11 +109,14 @@ export class DeadLetterService {
       });
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Failed to send event to dead-letter queue: ${err.message}`, {
-        originalTopic,
-        eventId: event.id,
-        error: err.message,
-      });
+      this.logger.error(
+        `Failed to send event to dead-letter queue: ${err.message}`,
+        {
+          originalTopic,
+          eventId: event.id,
+          error: err.message,
+        },
+      );
       // Don't throw - we don't want to fail the publishing flow if DLQ fails
     }
   }
@@ -94,7 +133,9 @@ export class DeadLetterService {
       const topic = metadata.topics.find(
         (t) => t.name === TOPIC_REGISTRY.DEAD_LETTER_QUEUE.name,
       );
-      return topic?.partitions.reduce((sum, p) => sum + (p.leader ? 0 : 0), 0) || 0;
+      return (
+        topic?.partitions.reduce((sum, p) => sum + (p.leader ? 0 : 0), 0) || 0
+      );
     } catch {
       return 0;
     }

@@ -1,5 +1,5 @@
 import { PrismaService } from '../prisma.service';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import {
   DatabaseRecordNotFoundError,
   UniqueConstraintViolationError,
@@ -9,7 +9,7 @@ import {
 /**
  * Base repository that wraps a Prisma delegate (e.g. prisma.company, prisma.user).
  * Reduces boilerplate for entity-specific repositories.
- * 
+ *
  * All database operations are wrapped with error translation to convert
  * Prisma errors into domain errors.
  */
@@ -116,21 +116,25 @@ export abstract class BaseRepository<
    * Translate Prisma errors to domain errors
    */
   private translateError(error: unknown): Error {
-    if (error instanceof PrismaClientKnownRequestError) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
       const { code, meta } = error;
 
       // P2025: Record not found
       if (code === 'P2025') {
         const model = (meta as any)?.modelName || 'Record';
         const id = (meta as any)?.id;
-        return new DatabaseRecordNotFoundError(model, id, { prismaError: code });
+        return new DatabaseRecordNotFoundError(model, id, {
+          prismaError: code,
+        });
       }
 
       // P2002: Unique constraint violation
       if (code === 'P2002') {
         const target = (meta as any)?.target || 'field';
         const field = Array.isArray(target) ? target.join(', ') : target;
-        return new UniqueConstraintViolationError(field, 'unknown', { prismaError: code });
+        return new UniqueConstraintViolationError(field, 'unknown', {
+          prismaError: code,
+        });
       }
 
       // P2003: Foreign key constraint violation
