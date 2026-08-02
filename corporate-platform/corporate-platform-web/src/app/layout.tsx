@@ -59,6 +59,11 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.png',
   },
   manifest: '/site.webmanifest',
+  // Cache control for the page itself (handled by Next.js ISR)
+  // This is a hint for crawlers and social media previews
+  other: {
+    'cache-control': 'public, s-maxage=60, stale-while-revalidate=300',
+  },
 }
 
 export default function RootLayout({
