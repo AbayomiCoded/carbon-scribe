@@ -2,9 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { KafkaService } from './kafka.service';
 import { Event } from './interfaces/event.interface';
 import { ConfigService } from '../config/config.service';
+import { EventValidatorService } from './event-validator.service';
+import { DeadLetterService } from './dead-letter/dead-letter.service';
 
 /**
- * Kafka Producer Service with timeout and cancellation support
+ * Kafka Producer Service with timeout, retry, and validation support
  * 
  * Features:
  * - Configurable send timeout (default: 10000ms)
@@ -12,6 +14,8 @@ import { ConfigService } from '../config/config.service';
  * - Retry with exponential backoff
  * - AbortController support for cancellation
  * - Batch publishing with timeout
+ * - Event validation before publishing
+ * - Dead-letter queue routing for invalid events
  */
 @Injectable()
 export class ProducerService {
@@ -23,6 +27,8 @@ export class ProducerService {
   constructor(
     private readonly kafkaService: KafkaService,
     private readonly configService: ConfigService,
+    private readonly validator: EventValidatorService,
+    private readonly deadLetterService: DeadLetterService,
   ) {
     const kafkaConfig = this.configService.getKafkaConfig();
     this.sendTimeout = kafkaConfig?.producerTimeout || 10000;
@@ -31,9 +37,27 @@ export class ProducerService {
   }
 
   /**
-   * Publish a single event with timeout and retry
+   * Publish a single event with validation, timeout and retry
    */
   async publish(topic: string, event: Event, signal?: AbortSignal): Promise<void> {
+    // Validate event before publishing
+    const validationResult = this.validator.validate(event, { throwOnError: false });
+    
+    if (!validationResult.valid) {
+      const errorMessages = validationResult.errors?.map((e) => `${e.field}: ${e.message}`).join(', ');
+      this.logger.error(`Event validation failed for ${event.id}: ${errorMessages}`);
+      
+      // Send invalid event to dead-letter queue
+      await this.deadLetterService.sendToDeadLetter(
+        topic,
+        event,
+        validationResult.errors || [],
+        'VALIDATION_FAILED',
+      );
+      
+      throw new Error(`Event validation failed: ${errorMessages}`);
+    }
+
     // Key by companyId or userId to ensure order partitioning
     const key = event.companyId || event.userId || event.source;
 
@@ -66,12 +90,48 @@ export class ProducerService {
   }
 
   /**
-   * Publish a batch of events with timeout and retry
+   * Publish a batch of events with validation, timeout and retry
    */
   async publishBatch(topic: string, events: Event[], signal?: AbortSignal): Promise<void> {
     if (!events.length) {
       this.logger.debug('Empty event batch, skipping publish');
       return;
+    }
+
+    // Validate all events before publishing
+    const validationResults = this.validator.validateBatch(events);
+    const invalidEvents: { event: Event; errors: any[] }[] = [];
+
+    for (let i = 0; i < events.length; i++) {
+      const result = validationResults[i];
+      if (!result.valid) {
+        invalidEvents.push({
+          event: events[i],
+          errors: result.errors || [],
+        });
+      }
+    }
+
+    // Handle invalid events
+    if (invalidEvents.length > 0) {
+      this.logger.error(
+        `Batch validation failed: ${invalidEvents.length} events invalid out of ${events.length}`,
+      );
+
+      // Send each invalid event to dead-letter queue
+      for (const { event, errors } of invalidEvents) {
+        await this.deadLetterService.sendToDeadLetter(
+          topic,
+          event,
+          errors,
+          'VALIDATION_FAILED',
+        );
+      }
+
+      throw new Error(
+        `Batch validation failed: ${invalidEvents.length} events invalid. ` +
+        `First error: ${invalidEvents[0].errors.map((e) => `${e.field}: ${e.message}`).join(', ')}`,
+      );
     }
 
     const messages = events.map((event) => ({
@@ -98,6 +158,40 @@ export class ProducerService {
     );
 
     this.logger.log(`Successfully published batch of ${events.length} events to topic ${topic}`);
+  }
+
+  /**
+   * Publish event without validation (for internal use)
+   */
+  async publishInternal(topic: string, event: Event, signal?: AbortSignal): Promise<void> {
+    const key = event.companyId || event.userId || event.source;
+
+    this.logger.debug(
+      `Publishing internal event ${event.id} of type ${event.type} to topic ${topic}`,
+    );
+
+    await this.executeWithRetry(
+      async () => {
+        const producer = this.kafkaService.getProducer();
+        await this.executeWithTimeout(
+          producer.send({
+            topic,
+            messages: [
+              {
+                key,
+                value: JSON.stringify(event),
+              },
+            ],
+          }),
+          this.sendTimeout,
+          `Kafka send to ${topic}`,
+          signal,
+        );
+      },
+      `publish internal event ${event.id} to ${topic}`,
+    );
+
+    this.logger.log(`Successfully published internal event ${event.id} to topic ${topic}`);
   }
 
   /**
