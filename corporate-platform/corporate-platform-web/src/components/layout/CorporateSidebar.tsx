@@ -83,7 +83,7 @@ export default function CorporateSidebar() {
     } else {
       // When expanded, restore focusability
       const navItems = navRef.current?.querySelectorAll('a[role="menuitem"]')
-      navItems?.forEach((item, index) => {
+      navItems?.forEach((item) => {
         const isActive = item.getAttribute('aria-current') === 'page'
         item.setAttribute('tabIndex', isActive ? '0' : '-1')
       })
@@ -130,8 +130,8 @@ export default function CorporateSidebar() {
         </div>
         {!collapsed && (
           <div>
-            <h2 className="font-bold text-lg">CarbonScribe</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Corporate</p>
+            <h2 className="font-bold text-lg text-text-primary dark:text-white">CarbonScribe</h2>
+            <p className="text-xs text-text-muted dark:text-gray-400">Corporate</p>
           </div>
         )}
       </div>
@@ -177,7 +177,7 @@ export default function CorporateSidebar() {
                 flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-colors focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2 focus:outline-none
                 ${isActive 
                   ? 'bg-linear-to-r from-corporate-blue/10 to-corporate-teal/10 text-corporate-blue dark:text-blue-300 border-l-4 border-corporate-blue' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  : 'text-text-secondary dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }
                 ${collapsed ? 'justify-center' : 'justify-between'}
               `}
@@ -200,10 +200,10 @@ export default function CorporateSidebar() {
               {!collapsed && item.badge && (
                 <span 
                   className={`
-                    px-2 py-1 text-xs rounded-full
+                    px-2 py-1 text-xs rounded-full font-medium
                     ${isActive 
                       ? 'bg-corporate-blue text-white' 
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      : 'bg-gray-200 dark:bg-gray-700 text-text-secondary dark:text-gray-300'
                     }
                   `}
                   role="status"
@@ -222,8 +222,8 @@ export default function CorporateSidebar() {
         <div className="p-4 border-t border-gray-200 dark:border-gray-800" role="complementary" aria-label="Credit stats">
           <div className="bg-linear-to-r from-corporate-navy/5 to-corporate-blue/5 dark:from-gray-800/50 dark:to-gray-800/30 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Credits Available</span>
-              <span className="text-sm font-bold text-corporate-blue" aria-live="polite">25,000</span>
+              <span className="text-sm text-text-secondary dark:text-gray-400">Credits Available</span>
+              <span className="text-sm font-bold text-corporate-blue dark:text-blue-300" aria-live="polite">25,000</span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2" role="progressbar" aria-valuenow={75} aria-valuemin={0} aria-valuemax={100}>
               <div 
@@ -232,7 +232,7 @@ export default function CorporateSidebar() {
                 aria-hidden="true"
               ></div>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">75% of quarterly target</p>
+            <p className="text-xs text-text-muted dark:text-gray-400 mt-2">75% of quarterly target</p>
           </div>
         </div>
       )}
