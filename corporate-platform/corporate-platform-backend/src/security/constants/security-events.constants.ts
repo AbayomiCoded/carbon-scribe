@@ -22,6 +22,7 @@ export const SecurityEvents = {
   ReportExported: 'report.exported',
   SettingsChanged: 'settings.changed',
   RateLimitExceeded: 'rate-limit.exceeded',
+  IdempotentRequest: 'idempotent.request',
   SuspiciousPatternDetected: 'suspicious.pattern.detected',
 } as const;
 
@@ -64,5 +65,6 @@ export const EventSeverityMap: Record<
   [SecurityEvents.ReportExported]: SecuritySeverity.Info,
   [SecurityEvents.SettingsChanged]: SecuritySeverity.Info,
   [SecurityEvents.RateLimitExceeded]: SecuritySeverity.Critical,
+  [SecurityEvents.IdempotentRequest]: SecuritySeverity.Info,
   [SecurityEvents.SuspiciousPatternDetected]: SecuritySeverity.Critical,
 };

@@ -124,7 +124,7 @@ describe('InstantRetirementForm', () => {
   it('quick-amount buttons update the displayed amount', () => {
     render(<InstantRetirementForm availableCredits={availableCredits} />)
 
-    fireEvent.click(screen.getByRole('button', { name: '5,000' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Set amount to 5,000 tons' }))
 
     expect(screen.getByText('5,000 tCO₂')).toBeInTheDocument()
   })

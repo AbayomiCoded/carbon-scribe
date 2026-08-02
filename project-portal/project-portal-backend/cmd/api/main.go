@@ -22,6 +22,7 @@ import (
 	"carbon-scribe/project-portal/project-portal-backend/internal/health"
 	"carbon-scribe/project-portal/project-portal-backend/internal/integration"
 	integrationstellar "carbon-scribe/project-portal/project-portal-backend/internal/integration/stellar"
+	"carbon-scribe/project-portal/project-portal-backend/internal/middleware"
 	"carbon-scribe/project-portal/project-portal-backend/internal/monitoring"
 	"carbon-scribe/project-portal/project-portal-backend/internal/notifications"
 	"carbon-scribe/project-portal/project-portal-backend/internal/notifications/channels"
@@ -99,6 +100,26 @@ func main() {
 	searchService := search.NewService(searchRepo)
 	searchHandler := search.NewHandler(searchService)
 
+	// Initialize Redis client and Rate Limiter
+	redisClient := middleware.NewRedisClient(
+		cfg.Redis.Host,
+		cfg.Redis.Port,
+		cfg.Redis.Password,
+		cfg.Redis.DB,
+	)
+	defer redisClient.Close()
+
+	// Probe Redis connectivity — fail open so the server still starts without Redis.
+	var rateLimiter *middleware.RateLimiter
+	redisCtx, redisCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer redisCancel()
+	if pingErr := redisClient.Ping(redisCtx).Err(); pingErr != nil {
+		log.Printf("⚠️  Redis unavailable (%v) — rate limiting is DISABLED", pingErr)
+	} else {
+		rateLimiter = middleware.NewRateLimiter(redisClient, cfg.RateLimit.IPWhitelist)
+		log.Println("✅ Redis connected — rate limiting enabled")
+	}
+
 	// Parse JWT token expiries
 	accessTokenExpiry := parseDuration(cfg.Auth.JWTAccessTokenExpiry, 15*time.Minute)
 	refreshTokenExpiry := parseDuration(cfg.Auth.JWTRefreshTokenExpiry, 7*24*time.Hour)
@@ -130,7 +151,7 @@ func main() {
 
 	mintingCapValidator := minting.NewCapValidator(methodologyCapService)
 	mintingService := minting.NewService(db, nil, mintingCapValidator)
-	mintingHandler := minting.NewHandler(mintingService)
+	mintingHandler := minting.NewHandler(mintingService).WithRateLimiter(rateLimiter)
 
 	projectService := project.NewService(projectRepo, methodologyService, mintingService, validation.Validator(methodologyValidator))
 	projectHandler := project.NewHandler(projectService)
@@ -181,7 +202,7 @@ func main() {
 	geospatialHandler := geospatial.NewHandler(geospatialService)
 	financingRepo := financing.NewRepository(db)
 	financingService := financing.NewService(financingRepo, methodologyService, methodologyCapService)
-	financingHandler := financing.NewHandler(financingService)
+	financingHandler := financing.NewHandler(financingService).WithRateLimiter(rateLimiter).WithRateLimiter(rateLimiter)
 	settingsRepo := settings.NewRepository(db)
 	settingsService, err := settings.NewService(settingsRepo, settings.Config{
 		EncryptionKeyHex: cfg.Settings.EncryptionKeyHex,
@@ -304,7 +325,7 @@ func main() {
 	{
 		// Register auth routes under v1
 		authGroup := v1.Group("/auth")
-		auth.RegisterAuthRoutes(authGroup, authHandler, tokenManager)
+		auth.RegisterAuthRoutes(authGroup, authHandler, tokenManager, rateLimiter)
 
 		// Register all project and quality routes (no duplicates)
 		project.RegisterRoutes(router, projectHandler, qualityHandler)

@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { AlertTriangle, Clock, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AccessibleIcon } from '@/components/common/AccessibleIcon';
+import { IconButton } from '@/components/common/IconButton';
 
 function formatCountdown(seconds: number): string {
   if (seconds >= 60) {
@@ -39,10 +41,47 @@ export default function SessionExpiryBanner() {
     setIsRenewing(false);
   };
 
+  const handleDismiss = () => {
+    setDismissed(true);
+  };
+
+  const getAriaLabel = () => {
+    if (isGrace) {
+      return 'Session expired. Auto-logout in ' + formatCountdown(secondsUntilExpiry) + '. Renew now to stay signed in.';
+    }
+    return 'Session expiring soon. You will be logged out in ' + formatCountdown(secondsUntilExpiry) + '.';
+  };
+
+  const getStatusMessage = () => {
+    if (isGrace) {
+      return (
+        <>
+          <span className="font-semibold">Session expired.</span>{' '}
+          Auto-logout in{' '}
+          <span className="tabular-nums font-mono font-bold" aria-live="polite">
+            {formatCountdown(secondsUntilExpiry)}
+          </span>
+          {' '}— renew now to stay signed in.
+        </>
+      );
+    }
+    return (
+      <>
+        <span className="font-semibold">Session expiring soon.</span>{' '}
+        You will be logged out in{' '}
+        <span className="tabular-nums font-mono font-bold" aria-live="polite">
+          {formatCountdown(secondsUntilExpiry)}
+        </span>
+        .
+      </>
+    );
+  };
+
   return (
     <div
       role="alert"
-      aria-live="polite"
+      aria-live={isGrace ? 'assertive' : 'polite'}
+      aria-label={getAriaLabel()}
       className={[
         'flex items-center gap-3 px-4 py-2.5 text-sm font-medium border-b',
         isGrace
@@ -51,42 +90,27 @@ export default function SessionExpiryBanner() {
       ].join(' ')}
     >
       {/* Icon */}
-      {isGrace ? (
-        <Clock size={16} className="shrink-0 text-red-500 dark:text-red-400" />
-      ) : (
-        <AlertTriangle size={16} className="shrink-0 text-amber-500 dark:text-amber-400" />
-      )}
+      <AccessibleIcon hidden aria-hidden="true">
+        {isGrace ? (
+          <Clock size={16} className="shrink-0 text-red-500 dark:text-red-400" />
+        ) : (
+          <AlertTriangle size={16} className="shrink-0 text-amber-500 dark:text-amber-400" />
+        )}
+      </AccessibleIcon>
 
       {/* Message */}
       <span className="flex-1">
-        {isGrace ? (
-          <>
-            <span className="font-semibold">Session expired.</span>{' '}
-            Auto-logout in{' '}
-            <span className="tabular-nums font-mono font-bold">
-              {formatCountdown(secondsUntilExpiry)}
-            </span>
-            {' '}— renew now to stay signed in.
-          </>
-        ) : (
-          <>
-            <span className="font-semibold">Session expiring soon.</span>{' '}
-            You will be logged out in{' '}
-            <span className="tabular-nums font-mono font-bold">
-              {formatCountdown(secondsUntilExpiry)}
-            </span>
-            .
-          </>
-        )}
+        {getStatusMessage()}
         {renewFailed && (
-          <span className="ml-2 text-xs opacity-80">
+          <span className="ml-2 text-xs opacity-80" role="alert" aria-live="polite">
             (Renewal failed — please try again.)
           </span>
         )}
       </span>
 
       {/* Renew button */}
-      <button
+      <IconButton
+        label={isRenewing ? 'Renewing session...' : 'Renew session'}
         onClick={handleRenew}
         disabled={isRenewing}
         className={[
@@ -96,19 +120,25 @@ export default function SessionExpiryBanner() {
             : 'bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white',
         ].join(' ')}
       >
-        <RefreshCw size={12} className={isRenewing ? 'animate-spin' : ''} />
-        {isRenewing ? 'Renewing…' : 'Renew Session'}
-      </button>
+        <AccessibleIcon hidden aria-hidden="true">
+          <RefreshCw size={12} className={isRenewing ? 'animate-spin' : ''} />
+        </AccessibleIcon>
+        <span>{isRenewing ? 'Renewing…' : 'Renew Session'}</span>
+        {isRenewing && <span className="sr-only">Please wait while your session is being renewed</span>}
+      </IconButton>
 
       {/* Dismiss (warning only) */}
       {isWarning && (
-        <button
-          onClick={() => setDismissed(true)}
-          aria-label="Dismiss session warning"
+        <IconButton
+          label="Dismiss session warning"
+          onClick={handleDismiss}
           className="shrink-0 rounded-md p-1 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
         >
-          <X size={14} />
-        </button>
+          <AccessibleIcon hidden aria-hidden="true">
+            <X size={14} />
+          </AccessibleIcon>
+          <span className="sr-only">Dismiss session expiry warning</span>
+        </IconButton>
       )}
     </div>
   );
