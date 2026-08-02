@@ -26,16 +26,10 @@ import {
   ValidationError,
   AccountInactiveError,
 } from '../shared/exceptions/error-classes';
-import { DomainError } from '../shared/exceptions/domain-error';
 
 interface RequestMetadata {
   ipAddress?: string;
   userAgent?: string;
-}
-
-interface BruteForceState {
-  count: number;
-  lockUntil?: Date;
 }
 
 type User = {
@@ -51,9 +45,16 @@ type User = {
 
 @Injectable()
 export class AuthService {
-  private readonly loginAttempts = new Map<string, BruteForceState>();
-  private readonly maxAttempts = 5;
-  private readonly lockMinutes = 15;
+  // ============================================================================
+  // REMOVED: In-memory brute force protection (loginAttempts Map, maxAttempts,
+  // lockMinutes, ensureNotLocked, registerFailedAttempt, clearFailedAttempts)
+  // 
+  // REPLACED BY: Redis-backed RateLimitGuard with distributed rate limiting
+  // - Login: 5 attempts per 15 minutes per IP + email
+  // - Register: 3 attempts per hour per IP
+  // - Forgot password: 3 attempts per hour per IP + email
+  // - Reset password: 3 attempts per hour per IP + token
+  // ============================================================================
 
   constructor(
     private readonly prisma: PrismaService,
@@ -149,11 +150,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, metadata: RequestMetadata): Promise<AuthResponse> {
-    this.ensureNotLocked(dto.email);
+    // Rate limiting is now handled by RateLimitGuard
+    // No in-memory brute force protection here
 
     const user = await this.validateUser(dto.email, dto.password);
     if (!user) {
-      this.registerFailedAttempt(dto.email);
       await this.securityService.logEvent({
         eventType: SecurityEvents.AuthLoginFailed,
         companyId: undefined,
@@ -167,8 +168,6 @@ export class AuthService {
       });
       throw new InvalidCredentialsError();
     }
-
-    this.clearFailedAttempts(dto.email);
 
     const session = await this.createSession(user.id, metadata);
     const { accessToken, refreshToken } = this.generateTokens(user, session.id);
@@ -534,31 +533,5 @@ export class AuthService {
       role: user.role,
       companyId: user.companyId,
     };
-  }
-
-  private ensureNotLocked(email: string) {
-    const state = this.loginAttempts.get(email);
-    if (!state || !state.lockUntil) {
-      return;
-    }
-    if (state.lockUntil > new Date()) {
-      throw new UnauthorizedException(
-        'Too many failed attempts, please try again later',
-      );
-    }
-    this.loginAttempts.delete(email);
-  }
-
-  private registerFailedAttempt(email: string) {
-    const state = this.loginAttempts.get(email) || { count: 0 };
-    state.count += 1;
-    if (state.count >= this.maxAttempts) {
-      state.lockUntil = new Date(Date.now() + this.lockMinutes * 60 * 1000);
-    }
-    this.loginAttempts.set(email, state);
-  }
-
-  private clearFailedAttempts(email: string) {
-    this.loginAttempts.delete(email);
   }
 }
