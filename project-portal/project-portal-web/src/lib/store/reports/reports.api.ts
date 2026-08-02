@@ -194,12 +194,19 @@ export async function apiCancelExecution(executionId: string): Promise<void> {
   });
 }
 
-export async function apiGetDatasets(): Promise<DatasetMetadata[]> {
-  const data = await reportsRequest<{ datasets: DatasetMetadata[] }>({
+export async function apiGetDatasets(params?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<{ datasets: DatasetMetadata[]; total?: number }> {
+  const q = new URLSearchParams();
+  if (params?.page !== undefined) q.set("page", String(params.page));
+  if (params?.pageSize !== undefined) q.set("page_size", String(params.pageSize));
+
+  const data = await reportsRequest<{ datasets: DatasetMetadata[]; total?: number }>({
     method: "GET",
-    url: "reports/datasets",
+    url: `reports/datasets${q.toString() ? `?${q.toString()}` : ""}`,
   });
-  return data?.datasets ?? [];
+  return { datasets: data?.datasets ?? [], total: data?.total ?? data?.datasets?.length ?? 0 };
 }
 
 export async function apiGetDashboardSummary(): Promise<DashboardSummary> {
