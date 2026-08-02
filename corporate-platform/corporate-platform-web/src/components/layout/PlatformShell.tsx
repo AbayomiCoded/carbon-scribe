@@ -10,6 +10,7 @@ import CorporateSidebar from '@/components/layout/CorporateSidebar'
 import AuthNavbar from '@/components/layout/AuthNavbar'
 import ConnectionStatus from '@/components/layout/ConnectionStatus'
 import SessionExpiryBanner from '@/components/layout/SessionExpiryBanner'
+import { ClientOnly } from '@/components/common/ClientOnly'
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password']
 
@@ -26,6 +27,7 @@ export default function PlatformShell({ children }: PlatformShellProps) {
   const { isLoading, isAuthenticated } = useAuth()
   const publicRoute = isPublicRoute(pathname)
 
+  // Public routes - render with AuthNavbar
   if (publicRoute) {
     return (
       <ConnectivityProvider>
@@ -39,33 +41,44 @@ export default function PlatformShell({ children }: PlatformShellProps) {
     )
   }
 
+  // Loading state - show skeleton
   if (isLoading) {
     return (
       <ConnectivityProvider>
-        <div 
+        <div
           className="flex min-h-screen items-center justify-center text-gray-500 dark:text-gray-400"
           role="status"
           aria-live="polite"
         >
-          Loading session...
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-4 border-corporate-blue border-t-transparent"
+              aria-hidden="true"
+            />
+            <span>Loading session...</span>
+          </div>
         </div>
       </ConnectivityProvider>
     )
   }
 
+  // Not authenticated - render nothing (redirect handled by AuthContext)
   if (!isAuthenticated) {
     return null
   }
 
+  // Authenticated - render full shell with hydration-safe content
   return (
     <ConnectivityProvider>
       <div className="flex min-h-screen">
         <CorporateSidebar />
         <div className="flex flex-1 flex-col">
-          <SessionExpiryBanner />
+          <ClientOnly fallback={<div className="h-12" />}>
+            <SessionExpiryBanner />
+          </ClientOnly>
           <CorporateNavbar />
           <ConnectionStatus />
-          <main 
+          <main
             className="flex-1 overflow-auto p-4 md:p-6 lg:p-8"
             role="main"
             aria-label="Main content"

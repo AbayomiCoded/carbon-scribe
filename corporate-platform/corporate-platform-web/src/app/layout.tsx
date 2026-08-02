@@ -9,8 +9,9 @@ import { ConnectivityProvider } from '@/contexts/ConnectivityContext'
 import PlatformShell from '@/components/layout/PlatformShell'
 import { RouteCancellationProvider } from '@/components/common/RouteCancellationProvider'
 import { SkipLink } from '@/components/common/SkipLink'
+import { ThemeScript } from '@/components/theme/ThemeScript'
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
@@ -66,8 +67,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html 
-      lang="en" 
+    <html
+      lang="en"
       className={`${inter.variable} h-full`}
       suppressHydrationWarning
     >
@@ -76,9 +77,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
+        {/* Inline theme script to prevent FOUC */}
+        <ThemeScript />
       </head>
-      <body 
+      <body
         className={`${inter.className} min-h-screen bg-linear-to-br from-gray-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 antialiased`}
+        suppressHydrationWarning
       >
         {/* Skip link for keyboard users */}
         <SkipLink />
@@ -89,15 +93,15 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Suspense 
+          <Suspense
             fallback={
-              <div 
+              <div
                 className="flex min-h-screen items-center justify-center"
                 role="status"
                 aria-live="polite"
               >
                 <span className="sr-only">Loading application...</span>
-                <div 
+                <div
                   className="h-8 w-8 animate-spin rounded-full border-4 border-corporate-blue border-t-transparent"
                   aria-hidden="true"
                 />

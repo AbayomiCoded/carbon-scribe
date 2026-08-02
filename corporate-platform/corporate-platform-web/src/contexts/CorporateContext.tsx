@@ -5,6 +5,7 @@ import { mockCorporateData, mockCredits, mockProjects, mockRetirements } from '@
 import portfolioService, { PortfolioAnalytics, PortfolioSummaryMetrics, PortfolioHolding } from '@/services/portfolio.service'
 import { useCompliance } from '@/hooks/useCompliance'
 import { ComplianceReport, ComplianceStatusItem, ComplianceFramework } from '@/types'
+import { useHydrated } from '@/hooks/useHydrated'
 
 interface CorporateContextType {
   company: any
@@ -37,6 +38,7 @@ interface CorporateContextType {
 const CorporateContext = createContext<CorporateContextType | undefined>(undefined)
 
 export function CorporateProvider({ children }: { children: ReactNode }) {
+  const isHydrated = useHydrated()
   const [company] = useState(mockCorporateData)
   const [credits] = useState(mockCredits)
   const [projects] = useState(mockProjects)
@@ -50,15 +52,18 @@ export function CorporateProvider({ children }: { children: ReactNode }) {
   const [selectedCredit, setSelectedCredit] = useState<any>(null)
   const [cart, setCart] = useState<any[]>([])
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
-  
+
   // Compliance state
   const compliance = useCompliance()
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null)
   const [complianceStatuses, setComplianceStatuses] = useState<ComplianceStatusItem[] | null>(null)
 
 
-  // Fetch portfolio data on mount
+  // Fetch portfolio data on mount - only runs on client
   useEffect(() => {
+    // Skip if not hydrated
+    if (!isHydrated) return
+
     setPortfolioLoading(true)
     setPortfolioError(null)
     Promise.all([
@@ -76,7 +81,7 @@ export function CorporateProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => setPortfolioError(err.message || 'Portfolio API error'))
       .finally(() => setPortfolioLoading(false));
-  }, [])
+  }, [isHydrated])
 
   const addToCart = (credit: any) => {
     setCart(prev => [...prev, credit])
