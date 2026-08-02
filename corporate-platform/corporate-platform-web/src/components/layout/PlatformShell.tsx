@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { ConnectivityProvider } from '@/contexts/ConnectivityContext'
@@ -11,6 +11,7 @@ import AuthNavbar from '@/components/layout/AuthNavbar'
 import ConnectionStatus from '@/components/layout/ConnectionStatus'
 import SessionExpiryBanner from '@/components/layout/SessionExpiryBanner'
 import { ClientOnly } from '@/components/common/ClientOnly'
+import { SkipLink } from '@/components/common/SkipLink'
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password']
 
@@ -27,13 +28,28 @@ export default function PlatformShell({ children }: PlatformShellProps) {
   const { isLoading, isAuthenticated } = useAuth()
   const publicRoute = isPublicRoute(pathname)
 
+  // Focus management on route change - return focus to main content
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !publicRoute) {
+      const mainContent = document.querySelector('main[role="main"]')
+      if (mainContent && !document.activeElement?.closest('main')) {
+        setTimeout(() => {
+          mainContent.setAttribute('tabindex', '-1')
+          ;(mainContent as HTMLElement).focus()
+          mainContent.removeAttribute('tabindex')
+        }, 100)
+      }
+    }
+  }, [pathname, isLoading, isAuthenticated, publicRoute])
+
   // Public routes - render with AuthNavbar
   if (publicRoute) {
     return (
       <ConnectivityProvider>
         <div className="flex min-h-screen flex-col">
+          <SkipLink />
           <AuthNavbar />
-          <main className="flex-1" role="main">
+          <main className="flex-1" id="main-content" role="main" tabIndex={-1}>
             {children}
           </main>
         </div>
@@ -79,9 +95,11 @@ export default function PlatformShell({ children }: PlatformShellProps) {
           <CorporateNavbar />
           <ConnectionStatus />
           <main
-            className="flex-1 overflow-auto p-4 md:p-6 lg:p-8"
+            id="main-content"
+            className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 focus:outline-none"
             role="main"
             aria-label="Main content"
+            tabIndex={-1}
           >
             <div className="mx-auto w-full max-w-7xl">
               <RouteGuard>{children}</RouteGuard>

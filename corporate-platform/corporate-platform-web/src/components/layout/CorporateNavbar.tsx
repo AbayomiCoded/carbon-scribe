@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Bell, Settings, User, ChevronDown, Menu, X, LogOut } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { useCorporate } from '@/contexts/CorporateContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAccessibility } from '@/hooks/useAccessibility'
 import { useAnnouncement } from '@/hooks/useAnnouncement'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { IconButton } from '@/components/common/IconButton'
 import { AccessibleIcon } from '@/components/common/AccessibleIcon'
 import { BadgeAnnouncer } from '@/components/common/BadgeAnnouncer'
@@ -22,9 +23,28 @@ export default function CorporateNavbar() {
   const { announce } = useAnnouncement()
   const menuRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   const cartCount = cart.length
   const cartLabel = getCartLabel(cartCount)
+
+  // Focus trap for mobile menu
+  const { containerRef: mobileMenuContainer } = useFocusTrap({
+    active: isMobileMenuOpen,
+    autoFocus: true,
+    onFocusTrap: () => {
+      announce('Mobile navigation menu opened', 'polite')
+    },
+  })
+
+  // Focus trap for user menu
+  const { containerRef: userMenuContainer } = useFocusTrap({
+    active: showUserMenu,
+    autoFocus: true,
+    onFocusTrap: () => {
+      announce('User menu opened', 'polite')
+    },
+  })
 
   const handleLogout = async () => {
     try {
@@ -52,11 +72,34 @@ export default function CorporateNavbar() {
     setShowUserMenu(!showUserMenu)
   }
 
+  // Keyboard shortcuts (Ctrl+K for search)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K for search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        const searchInput = document.querySelector(
+          'input[type="search"]'
+        ) as HTMLInputElement
+        if (searchInput) {
+          searchInput.focus()
+          announce('Search input focused', 'polite')
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [announce])
+
   // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false)
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false)
       }
     }
 
@@ -76,6 +119,9 @@ export default function CorporateNavbar() {
     return () => window.removeEventListener('resize', handleResize)
   }, [isMobileMenuOpen])
 
+  // Keyboard shortcut documentation
+  const shortcutHint = 'Press Ctrl+K to search'
+
   // Don't render theme toggle until mounted to avoid hydration mismatch
   if (!mounted) return null
 
@@ -93,7 +139,7 @@ export default function CorporateNavbar() {
               onClick={handleToggleMobileMenu}
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-menu"
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
             >
               <AccessibleIcon hidden aria-hidden="true">
                 {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -122,9 +168,9 @@ export default function CorporateNavbar() {
               </AccessibleIcon>
               <input
                 type="search"
-                placeholder={labels.searchCredits}
+                placeholder={`${labels.searchCredits} (Ctrl+K)`}
                 aria-label={labels.searchCredits}
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
+                className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
               />
             </div>
           </div>
@@ -136,7 +182,7 @@ export default function CorporateNavbar() {
               label={labels.toggleTheme}
               onClick={handleToggleTheme}
               aria-pressed={document.documentElement.classList.contains('dark')}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
             >
               <AccessibleIcon hidden aria-hidden="true">
                 {document.documentElement.classList.contains('dark') ? '🌞' : '🌙'}
@@ -148,7 +194,7 @@ export default function CorporateNavbar() {
               <IconButton
                 label={cartLabel}
                 onClick={() => {}} // Placeholder - cart toggle will be handled by parent
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 relative"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 relative focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
               >
                 <AccessibleIcon hidden aria-hidden="true">
                   <div className="w-5 h-5 flex items-center justify-center">🛒</div>
@@ -175,7 +221,7 @@ export default function CorporateNavbar() {
               <IconButton
                 label={labels.viewNotifications}
                 onClick={() => {}} // Placeholder - notifications toggle
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
               >
                 <AccessibleIcon hidden aria-hidden="true">
                   <Bell size={20} />
@@ -193,7 +239,7 @@ export default function CorporateNavbar() {
               <div className="hidden md:block relative" ref={userMenuRef}>
                 <button
                   onClick={handleToggleUserMenu}
-                  className="flex items-center space-x-3 hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-all"
+                  className="flex items-center space-x-3 hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-all focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
                   aria-haspopup="menu"
                   aria-expanded={showUserMenu}
                   aria-controls="user-menu"
@@ -217,9 +263,14 @@ export default function CorporateNavbar() {
                 {showUserMenu && (
                   <div 
                     id="user-menu"
-                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50"
+                    ref={(el) => {
+                      userMenuRef.current = el
+                      userMenuContainer(el)
+                    }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50 focus:outline-none"
                     role="menu"
                     aria-label="User menu"
+                    tabIndex={-1}
                   >
                     <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700" role="none">
                       <p className="text-sm font-medium text-gray-900 dark:text-white" role="menuitem">
@@ -231,7 +282,7 @@ export default function CorporateNavbar() {
                     <div className="py-1" role="none">
                       <a
                         href="/settings"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
                         role="menuitem"
                       >
                         <AccessibleIcon hidden aria-hidden="true">
@@ -241,7 +292,7 @@ export default function CorporateNavbar() {
                       </a>
                       <a
                         href="/profile"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
                         role="menuitem"
                       >
                         <AccessibleIcon hidden aria-hidden="true">
@@ -254,7 +305,7 @@ export default function CorporateNavbar() {
                     <div className="border-t border-gray-200 dark:border-gray-700 py-1" role="none">
                       <button
                         onClick={handleLogout}
-                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                         role="menuitem"
                         aria-label={labels.logout}
                       >
@@ -273,7 +324,7 @@ export default function CorporateNavbar() {
             <IconButton
               label={labels.openSettings}
               onClick={() => {}} // Placeholder - settings navigation
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
             >
               <AccessibleIcon hidden aria-hidden="true">
                 <Settings size={20} />
@@ -292,7 +343,7 @@ export default function CorporateNavbar() {
               type="search"
               placeholder="Search..."
               aria-label="Search credits, projects, or analytics..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
+              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
             />
           </div>
         </div>
@@ -302,9 +353,14 @@ export default function CorporateNavbar() {
       {isMobileMenuOpen && (
         <div 
           id="mobile-menu"
-          className="lg:hidden border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900"
+          ref={(el) => {
+            mobileMenuRef.current = el
+            mobileMenuContainer(el)
+          }}
+          className="lg:hidden border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900 focus:outline-none"
           role="navigation"
           aria-label="Mobile navigation"
+          tabIndex={-1}
         >
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
@@ -317,12 +373,25 @@ export default function CorporateNavbar() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button className="corporate-btn-secondary" aria-label="View profile">Profile</button>
-              <button className="corporate-btn-primary" aria-label="Retire credits">Retire Credits</button>
+              <button 
+                className="corporate-btn-secondary focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2" 
+                aria-label="View profile"
+              >
+                Profile
+              </button>
+              <button 
+                className="corporate-btn-primary focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2" 
+                aria-label="Retire credits"
+              >
+                Retire Credits
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Keyboard shortcut hint - visually hidden but accessible */}
+      <span className="sr-only">{shortcutHint}</span>
     </header>
   )
 }

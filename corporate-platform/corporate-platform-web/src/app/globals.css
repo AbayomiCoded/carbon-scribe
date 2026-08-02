@@ -91,6 +91,104 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* ================================================================
+   * Accessibility: Focus-visible styles for keyboard navigation
+   * ================================================================ */
+  
+  /* Focus-visible styles for all interactive elements */
+  :focus-visible {
+    outline: 2px solid var(--color-corporate-blue);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  /* Focus-visible for dark mode */
+  .dark :focus-visible {
+    outline-color: oklch(0.679 0.237 265.69);
+  }
+
+  /* Focus-visible for destructive actions */
+  :focus-visible.destructive {
+    outline-color: var(--color-destructive);
+  }
+
+  /* ================================================================
+   * Accessibility: Skip link styles
+   * ================================================================ */
+  
+  /* Screen reader only - hidden by default */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Skip link becomes visible when focused by keyboard */
+  .sr-only:focus-visible {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    width: auto;
+    height: auto;
+    padding: 1rem 1.5rem;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    background: white;
+    color: var(--color-corporate-blue);
+    z-index: 9999;
+    border: 2px solid var(--color-corporate-blue);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    outline: none;
+  }
+
+  .dark .sr-only:focus-visible {
+    background: oklch(0.145 0 0);
+    color: oklch(0.679 0.237 265.69);
+    border-color: oklch(0.679 0.237 265.69);
+  }
+
+  /* ================================================================
+   * Accessibility: Reduced motion preferences
+   * ================================================================ */
+  
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ================================================================
+   * Accessibility: High contrast mode support
+   * ================================================================ */
+  
+  @media (prefers-contrast: high) {
+    :focus-visible {
+      outline: 3px solid var(--color-corporate-blue);
+      outline-offset: 3px;
+    }
+    
+    .corporate-card {
+      border-width: 2px;
+    }
+  }
 }
 
 @layer utilities {
@@ -114,6 +212,43 @@
   
   .dark .glass-effect {
     background-color: color-mix(in oklab, oklch(0.145 0 0) 70%, transparent);
+  }
+
+  /* ================================================================
+   * Accessibility: Focus ring utility
+   * ================================================================ */
+  
+  .focus-ring {
+    outline: none;
+    transition: outline 0.2s ease;
+  }
+  
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-corporate-blue);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  
+  .focus-ring-offset-2:focus-visible {
+    outline-offset: 2px;
+  }
+  
+  .focus-ring-offset-4:focus-visible {
+    outline-offset: 4px;
+  }
+
+  /* ================================================================
+   * Accessibility: Focus ring with corporate color
+   * ================================================================ */
+  
+  .focus-ring-corporate {
+    outline: none;
+  }
+  
+  .focus-ring-corporate:focus-visible {
+    outline: 2px solid var(--color-corporate-blue);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
   }
 }
 

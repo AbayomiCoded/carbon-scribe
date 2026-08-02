@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAccessibility } from '@/hooks/useAccessibility'
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
 import { IconButton } from '@/components/common/IconButton'
 import { AccessibleIcon } from '@/components/common/AccessibleIcon'
 import { 
@@ -43,15 +44,51 @@ export default function CorporateSidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const { canAccessRoute, isAuthenticated } = useAuth()
   const { labels } = useAccessibility()
+  const navRef = useRef<HTMLElement>(null)
 
   const visibleNavigation = navigation.filter((item) => {
     if (!isAuthenticated) return false
     return canAccessRoute(item.href).allowed
   })
 
+  // Keyboard navigation for sidebar items
+  const { containerRef, getItemProps } = useKeyboardNavigation({
+    items: visibleNavigation,
+    onSelect: (item) => {
+      // Navigation handled by Link component
+    },
+    orientation: 'vertical',
+    enabled: !collapsed,
+  })
+
   const handleToggleSidebar = () => {
     setCollapsed(!collapsed)
+    // Focus returns to toggle button after collapse
+    const toggleButton = document.querySelector(
+      '[aria-label="Toggle sidebar"]'
+    ) as HTMLButtonElement
+    if (toggleButton) {
+      setTimeout(() => toggleButton.focus(), 100)
+    }
   }
+
+  // Focus trap for collapsed sidebar
+  useEffect(() => {
+    if (collapsed) {
+      // When collapsed, only the toggle button should be focusable
+      const navItems = navRef.current?.querySelectorAll('a[role="menuitem"]')
+      navItems?.forEach((item) => {
+        item.setAttribute('tabIndex', '-1')
+      })
+    } else {
+      // When expanded, restore focusability
+      const navItems = navRef.current?.querySelectorAll('a[role="menuitem"]')
+      navItems?.forEach((item, index) => {
+        const isActive = item.getAttribute('aria-current') === 'page'
+        item.setAttribute('tabIndex', isActive ? '0' : '-1')
+      })
+    }
+  }, [collapsed])
 
   return (
     <aside 
@@ -65,13 +102,15 @@ export default function CorporateSidebar() {
       `}
       role="complementary"
       aria-label="Main navigation sidebar"
+      aria-expanded={!collapsed}
     >
       {/* Collapse Button */}
       <IconButton
         label={labels.toggleSidebar}
         onClick={handleToggleSidebar}
         aria-expanded={!collapsed}
-        className="absolute -right-3 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1 z-10 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        aria-controls="sidebar-navigation"
+        className="absolute -right-3 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1 z-10 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2"
       >
         <AccessibleIcon hidden aria-hidden="true">
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -98,15 +137,44 @@ export default function CorporateSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1" role="navigation" aria-label="Main navigation">
-        {visibleNavigation.map((item) => {
+      <nav 
+        id="sidebar-navigation"
+        ref={(el) => {
+          navRef.current = el
+          containerRef(el)
+        }}
+        className="flex-1 p-4 space-y-1 focus:outline-none"
+        role="navigation"
+        aria-label="Main navigation"
+        onKeyDown={(e) => {
+          // Handle arrow key navigation
+          if (!collapsed) {
+            const items = visibleNavigation
+            const currentIndex = items.findIndex(
+              (item) => pathname === item.href
+            )
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              const direction = e.key === 'ArrowDown' ? 1 : -1
+              let newIndex = currentIndex + direction
+              if (newIndex < 0) newIndex = items.length - 1
+              if (newIndex >= items.length) newIndex = 0
+              const targetItem = document.querySelector(
+                `a[href="${items[newIndex].href}"]`
+              ) as HTMLAnchorElement
+              if (targetItem) targetItem.focus()
+            }
+          }
+        }}
+      >
+        {visibleNavigation.map((item, index) => {
           const isActive = pathname === item.href
           return (
             <Link
               key={item.name}
               href={item.href}
               className={`
-                flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-colors
+                flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-colors focus:ring-2 focus:ring-corporate-blue focus:ring-offset-2 focus:outline-none
                 ${isActive 
                   ? 'bg-linear-to-r from-corporate-blue/10 to-corporate-teal/10 text-corporate-blue dark:text-blue-300 border-l-4 border-corporate-blue' 
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -114,6 +182,9 @@ export default function CorporateSidebar() {
                 ${collapsed ? 'justify-center' : 'justify-between'}
               `}
               aria-current={isActive ? 'page' : undefined}
+              role="menuitem"
+              tabIndex={isActive ? 0 : -1}
+              {...getItemProps(index)}
             >
               <div className="flex items-center">
                 <AccessibleIcon hidden aria-hidden="true">
