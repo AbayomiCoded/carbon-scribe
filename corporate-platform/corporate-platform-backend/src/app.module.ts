@@ -41,6 +41,8 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { ExceptionMappingInterceptor } from './shared/interceptors/exception-mapping.interceptor';
+import { RequestTimeoutInterceptor } from './shared/interceptors/request-timeout.interceptor';
+
 
 @Module({
   imports: [
@@ -92,6 +94,10 @@ import { ExceptionMappingInterceptor } from './shared/interceptors/exception-map
     {
       provide: APP_INTERCEPTOR,
       useClass: ExceptionMappingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestTimeoutInterceptor,
     },
   ],
 })
