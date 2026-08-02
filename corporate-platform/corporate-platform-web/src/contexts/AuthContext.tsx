@@ -33,6 +33,8 @@ import {
   getTokenExpiry,
 } from '@/lib/auth/token-storage';
 import { reportError } from '@/lib/telemetry/errorReporter';
+import { useHydrated } from '@/hooks/useHydrated';
+import { isClient, safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/utils/hydration';
 
 export type SessionExpiryState = 'active' | 'warning' | 'grace' | 'expired';
 
@@ -73,6 +75,8 @@ function isPublicRoute(path: string): boolean {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Use hydration-safe state initialization
+  const isHydrated = useHydrated();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionExpiryState, setSessionExpiryState] = useState<SessionExpiryState>('active');
@@ -96,8 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Initialize auth state from storage
+  // Initialize auth state from storage - runs only on client after hydration
   useEffect(() => {
+    // Skip initialization on server
+    if (!isClient()) {
+      setIsLoading(false);
+      return;
+    }
+
     const initAuth = async () => {
       try {
         const storedUser = getUser();
@@ -133,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [syncProfile]);
 
   // Silent token refresh (no loading state)
-  const refreshTokenSilently = async (): Promise<boolean> => {
+  const refreshTokenSilently = useCallback(async (): Promise<boolean> => {
     try {
       const refreshToken = getRefreshToken();
       if (!refreshToken) return false;
@@ -142,20 +152,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.accessToken || !response.refreshToken) {
         return false;
       }
-      
+
       // Store new tokens (backend returns 15min access token)
       storeTokens(response.accessToken, response.refreshToken, 900);
       const profile = await syncProfile(response.accessToken);
       if (!profile) {
         return false;
       }
-      
+
       return true;
     } catch (error) {
       reportError(error, 'AuthContext', 'warning', { operation: 'refreshToken' });
       return false;
     }
-  };
+  }, [syncProfile]);
 
   // Manual token refresh
   const refreshToken = useCallback(async (): Promise<boolean> => {
@@ -166,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [syncProfile]);
+  }, [refreshTokenSilently]);
 
   // Renew session — same as refreshToken but semantically scoped to expiry UX
   const renewSession = useCallback(async (): Promise<boolean> => {
@@ -175,8 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessionExpiryState('active');
     }
     return success;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncProfile]);
+  }, [refreshTokenSilently]);
 
   // Login function
   const login = useCallback(async (credentials: LoginCredentials) => {
@@ -233,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const refreshToken = getRefreshToken();
-      
+
       // Call backend logout if refresh token exists
       if (refreshToken) {
         try {
@@ -248,7 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuthData();
       setUser(null);
       setIsLoading(false);
-      
+
       // Redirect to login
       router.push('/login');
     }
@@ -313,15 +322,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, pathname, router]);
+  }, [user, pathname, router, refreshTokenSilently]);
 
-  // Protect routes
+  // Protect routes - only runs after hydration
   useEffect(() => {
+    if (!isHydrated) return;
     if (isLoading) return; // Wait for auth initialization
 
     const currentPath = pathname || '/';
-    
+
     if (!user && !isPublicRoute(currentPath)) {
       // Redirect to login if not authenticated
       router.push('/login');
@@ -329,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to dashboard if already authenticated
       router.push('/');
     }
-  }, [user, isLoading, pathname, router]);
+  }, [user, isLoading, pathname, router, isHydrated]);
 
   const role: AuthRole | null = user ? normalizeRole(user.role) : null;
   const permissions = user ? getPermissionsForRole(user.role) : [];
