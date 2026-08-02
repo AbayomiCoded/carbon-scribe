@@ -5,6 +5,9 @@ import { StartupValidator } from './config/validation/startup-validator';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from '@nestjs/common';
+import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
+import { ExceptionMappingInterceptor } from './shared/interceptors/exception-mapping.interceptor';
+import { LoggerService } from './logger/logger.service';
 
 function parseCorsOrigins(value?: string): string[] {
   const defaults = ['http://localhost:3000', 'http://127.0.0.1:3000'];
@@ -47,6 +50,23 @@ async function bootstrap() {
     logger.error(`❌ Startup validation error: ${err.message}`);
     process.exit(1);
   }
+
+  // ============================================================================
+  // Global Exception Handling
+  // ============================================================================
+
+  /**
+   * Register global exception filter for centralized error handling
+   * This filter catches all exceptions and transforms them into consistent error responses
+   */
+  const loggerService = app.get(LoggerService);
+  app.useGlobalFilters(new HttpExceptionFilter(loggerService));
+
+  /**
+   * Register global interceptor for mapping exceptions
+   * This interceptor translates Prisma errors and other exceptions before they reach the filter
+   */
+  app.useGlobalInterceptors(new ExceptionMappingInterceptor());
 
   // ============================================================================
   // Helmet HTTP Hardening Middleware

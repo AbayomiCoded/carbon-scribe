@@ -38,6 +38,9 @@ import { SbtiModule } from './sbti/sbti.module';
 import { HealthModule } from './health/health.module';
 import { DevBootstrapSeedService } from './dev/dev-bootstrap-seed.service';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
+import { ExceptionMappingInterceptor } from './shared/interceptors/exception-mapping.interceptor';
 
 @Module({
   imports: [
@@ -77,7 +80,20 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
     RateLimitModule,
   ],
   controllers: [AppController],
-  providers: [AppService, DevBootstrapSeedService],
+  providers: [
+    AppService,
+    DevBootstrapSeedService,
+    // Global exception filter registration
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    // Global interceptor registration
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ExceptionMappingInterceptor,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -18,6 +17,16 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { randomBytes } from 'crypto';
 import { SecurityService } from '../security/security.service';
 import { SecurityEvents } from '../security/constants/security-events.constants';
+import {
+  InvalidCredentialsError,
+  UserNotFoundError,
+  InvalidRefreshTokenError,
+  SessionExpiredError,
+  EmailAlreadyInUseError,
+  ValidationError,
+  AccountInactiveError,
+} from '../shared/exceptions/error-classes';
+import { DomainError } from '../shared/exceptions/domain-error';
 
 interface RequestMetadata {
   ipAddress?: string;
@@ -60,7 +69,7 @@ export class AuthService {
       where: { email: dto.email },
     });
     if (existing) {
-      throw new BadRequestException('Email already in use');
+      throw new EmailAlreadyInUseError(dto.email);
     }
 
     const company = await this.prisma.company.create({
@@ -156,7 +165,7 @@ export class AuthService {
         status: 'failure',
         statusCode: 401,
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidCredentialsError();
     }
 
     this.clearFailedAttempts(dto.email);
@@ -210,7 +219,7 @@ export class AuthService {
     try {
       payload = this.jwtService.verify<JwtPayload>(dto.refreshToken);
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new InvalidRefreshTokenError();
     }
 
     const session = await this.prisma.session.findUnique({
@@ -218,11 +227,11 @@ export class AuthService {
     });
 
     if (!session || !session.isValid) {
-      throw new UnauthorizedException('Invalid session');
+      throw new InvalidRefreshTokenError();
     }
 
     if (session.expiresAt <= new Date()) {
-      throw new UnauthorizedException('Session expired');
+      throw new SessionExpiredError();
     }
 
     const matches = await bcrypt.compare(
@@ -230,15 +239,19 @@ export class AuthService {
       session.refreshToken,
     );
     if (!matches) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new InvalidRefreshTokenError();
     }
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('User not found');
+    if (!user) {
+      throw new UserNotFoundError(payload.sub);
+    }
+
+    if (!user.isActive) {
+      throw new AccountInactiveError();
     }
 
     const { accessToken, refreshToken } = this.generateTokens(user, session.id);
@@ -273,7 +286,7 @@ export class AuthService {
     try {
       payload = this.jwtService.verify<JwtPayload>(dto.refreshToken);
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new InvalidRefreshTokenError();
     }
 
     const session = await this.prisma.session.findUnique({
@@ -317,12 +330,12 @@ export class AuthService {
       where: { id: userId },
     });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new UserNotFoundError(userId);
     }
 
     const matches = await bcrypt.compare(dto.currentPassword, user.password);
     if (!matches) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new InvalidCredentialsError();
     }
 
     const newHash = await bcrypt.hash(dto.newPassword, 10);
@@ -359,7 +372,7 @@ export class AuthService {
       where: { id: userId },
     });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new UserNotFoundError(userId);
     }
     return this.toAuthUser(user);
   }
@@ -448,7 +461,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new ValidationError('Invalid or expired reset token');
     }
 
     const newHash = await bcrypt.hash(dto.newPassword, 10);
