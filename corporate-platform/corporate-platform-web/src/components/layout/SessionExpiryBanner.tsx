@@ -108,7 +108,7 @@ export default function SessionExpiryBanner() {
     <div
       ref={(el) => {
         bannerRef.current = el;
-        containerRef(el);
+        containerRef.current = el;
       }}
       role="alert"
       aria-live={isGrace ? 'assertive' : 'polite'}

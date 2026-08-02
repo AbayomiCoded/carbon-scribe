@@ -32,7 +32,7 @@ export function useKeyboardNavigation({
   orientation = 'vertical',
   itemKey = 'id',
 }: KeyboardNavigationOptions) {
-  const [selectedIndex, setSelectedIndex] = useRef(initialIndex)
+  const selectedIndex = useRef(initialIndex)
   const containerRef = useRef<HTMLElement | null>(null)
 
   const navigate = useCallback(

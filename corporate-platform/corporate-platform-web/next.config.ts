@@ -39,18 +39,16 @@ const nextConfig: NextConfig = {
   // Enable React Strict Mode for better development
   reactStrictMode: true,
 
-  // Enable SWC minification for faster builds
-  swcMinify: true,
-
   // Experimental features
   experimental: {
     // Optimize server components
     optimizeCss: true,
-    // Enable Turbo for faster dev builds
-    turbo: {
-      resolveAlias: {
-        '@': './src',
-      },
+  },
+
+  // Enable Turbo for faster dev builds
+  turbopack: {
+    resolveAlias: {
+      '@': './src',
     },
   },
 

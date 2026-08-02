@@ -2,6 +2,8 @@
  * Utility functions for calculating and validating color contrast
  */
 
+import { CONTRAST } from './contrast-constants';
+
 /**
  * Calculate the relative luminance of a color
  * @param r - Red value (0-255)

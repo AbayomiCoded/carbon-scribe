@@ -158,7 +158,7 @@ class ApiClient {
       const cached = this.getCachedResponse<T>(cacheKey);
       if (cached) {
         // Add cache headers to response
-        const cacheHeaders = getApiCacheHeaders('GET');
+        const cacheHeaders: Record<string, string> = { ...getApiCacheHeaders('GET') };
         return {
           ...cached,
           cacheHeaders,

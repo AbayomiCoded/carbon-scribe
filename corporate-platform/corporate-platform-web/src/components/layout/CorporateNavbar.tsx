@@ -265,7 +265,7 @@ export default function CorporateNavbar() {
                     id="user-menu"
                     ref={(el) => {
                       userMenuRef.current = el
-                      userMenuContainer(el)
+                      userMenuContainer.current = el
                     }}
                     className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50 focus:outline-none"
                     role="menu"
@@ -355,7 +355,7 @@ export default function CorporateNavbar() {
           id="mobile-menu"
           ref={(el) => {
             mobileMenuRef.current = el
-            mobileMenuContainer(el)
+            mobileMenuContainer.current = el
           }}
           className="lg:hidden border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900 focus:outline-none"
           role="navigation"

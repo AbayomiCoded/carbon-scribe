@@ -141,7 +141,7 @@ export default function CorporateSidebar() {
         id="sidebar-navigation"
         ref={(el) => {
           navRef.current = el
-          containerRef(el)
+          containerRef.current = el
         }}
         className="flex-1 p-4 space-y-1 focus:outline-none"
         role="navigation"
@@ -182,8 +182,6 @@ export default function CorporateSidebar() {
                 ${collapsed ? 'justify-center' : 'justify-between'}
               `}
               aria-current={isActive ? 'page' : undefined}
-              role="menuitem"
-              tabIndex={isActive ? 0 : -1}
               {...getItemProps(index)}
             >
               <div className="flex items-center">

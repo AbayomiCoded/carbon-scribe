@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Suspense } from 'react'
 import { Inter } from 'next/font/google'
 import './globals.css'
@@ -25,11 +25,6 @@ export const metadata: Metadata = {
   description: 'Purchase, manage, and retire carbon credits with transparent, on-chain verification',
   keywords: ['carbon credits', 'sustainability', 'corporate', 'climate action', 'carbon offset'],
   authors: [{ name: 'CarbonScribe Team' }],
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-  },
   robots: {
     index: true,
     follow: true,
@@ -64,6 +59,12 @@ export const metadata: Metadata = {
   other: {
     'cache-control': 'public, s-maxage=60, stale-while-revalidate=300',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 }
 
 export default function RootLayout({
