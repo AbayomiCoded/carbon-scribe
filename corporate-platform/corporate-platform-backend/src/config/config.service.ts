@@ -16,6 +16,16 @@ import {
 } from './interfaces/logging-config.interface';
 import { ServicesConfig } from './interfaces/services-config.interface';
 
+export interface RateLimitConfig {
+  enabled: boolean;
+  defaultWindowMs: number;
+  defaultMaxRequests: number;
+  redisKeyPrefix: string;
+  enableMetrics: boolean;
+  enableLogging: boolean;
+  whitelistEnabled: boolean;
+}
+
 export interface AllConfig {
   app: AppConfig;
   database: DatabaseConfig;
@@ -25,6 +35,7 @@ export interface AllConfig {
   auth: AuthConfig;
   logging: LoggingConfig;
   services: ServicesConfig;
+  rateLimit: RateLimitConfig;
 }
 
 @Injectable()
@@ -36,7 +47,7 @@ export class ConfigService {
     this.config = this.buildConfig();
   }
 
-  reload() {
+  reload(): void {
     this.loadEnvFile();
     this.config = this.buildConfig();
   }
@@ -73,7 +84,11 @@ export class ConfigService {
     return this.config.services;
   }
 
-  private loadEnvFile() {
+  getRateLimitConfig(): RateLimitConfig {
+    return this.config.rateLimit;
+  }
+
+  private loadEnvFile(): void {
     const explicitPath = process.env.CONFIG_FILE;
     if (explicitPath && existsSync(explicitPath)) {
       dotenv.config({ path: explicitPath });
@@ -104,6 +119,7 @@ export class ConfigService {
       serviceName: value.SERVICE_NAME,
     };
 
+    // Basic production validation (additional validation handled by StartupValidator)
     if (app.nodeEnv === 'production') {
       if (!value.DATABASE_URL) {
         throw new Error('DATABASE_URL is required in production');
@@ -173,6 +189,23 @@ export class ConfigService {
       ipfsGateway: value.IPFS_GATEWAY || undefined,
     };
 
+    // Rate limit configuration with environment variable overrides
+    const rateLimit: RateLimitConfig = {
+      enabled: process.env.RATE_LIMIT_ENABLED !== 'false',
+      defaultWindowMs: parseInt(
+        process.env.RATE_LIMIT_DEFAULT_WINDOW_MS || '60000',
+        10,
+      ),
+      defaultMaxRequests: parseInt(
+        process.env.RATE_LIMIT_DEFAULT_MAX_REQUESTS || '10',
+        10,
+      ),
+      redisKeyPrefix: process.env.RATE_LIMIT_REDIS_PREFIX || 'rate-limit',
+      enableMetrics: process.env.RATE_LIMIT_METRICS_ENABLED !== 'false',
+      enableLogging: process.env.RATE_LIMIT_LOGGING_ENABLED !== 'false',
+      whitelistEnabled: process.env.RATE_LIMIT_WHITELIST_ENABLED !== 'false',
+    };
+
     return {
       app,
       database,
@@ -182,6 +215,7 @@ export class ConfigService {
       auth,
       logging,
       services,
+      rateLimit,
     };
   }
 }
